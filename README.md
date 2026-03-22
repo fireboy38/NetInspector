@@ -170,4 +170,4 @@ MIT License
 
 ## 联系方式
 
-技术支持：support@example.com
+技术支持：diao@vip.qq.com
