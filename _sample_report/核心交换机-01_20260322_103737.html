@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>巡检报告 · 核心交换机-01 · 四川新数网络巡检项目2025</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #2d3436;
+        }
+        /* ─── 顶部品牌栏 ─── */
+        .brand-bar {
+            background: linear-gradient(135deg, #2C3E50 0%, #3D5570 100%);
+            color: white;
+            padding: 14px 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .brand-bar .company { font-size: 1.1em; font-weight: bold; letter-spacing: 1px; }
+        .brand-bar .sys-name { font-size: 0.9em; color: #A8C7E8; margin-top: 2px; }
+        .brand-bar .version  { font-size: 0.82em; color: #7FB3D3; }
+        /* ─── 项目标题 ─── */
+        .project-header {
+            background: white;
+            padding: 18px 36px;
+            border-bottom: 2px solid #E8ECF0;
+        }
+        .project-header h1 {
+            font-size: 1.4em;
+            color: #2C3E50;
+            font-weight: bold;
+        }
+        .project-header .sub {
+            font-size: 0.88em;
+            color: #888;
+            margin-top: 4px;
+        }
+        /* ─── 主内容 ─── */
+        .container { max-width: 1140px; margin: 24px auto; padding: 0 24px; }
+        .section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .section-title {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            font-size: 0.95em;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-left: 5px solid #3498db;
+        }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #ecf0f1;
+            font-size: 0.94em;
+        }
+        .info-table td:first-child {
+            font-weight: bold;
+            background: #f8f9fa;
+            width: 140px;
+            color: #555;
+        }
+        /* ─── 命令输出 ─── */
+        .cmd-block { margin: 0; }
+        .cmd-header {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            padding: 8px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.86em;
+            letter-spacing: 0.5px;
+        }
+        .cmd-output {
+            background: #1e1e2e;
+            color: #a8d8a8;
+            padding: 14px 18px;
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 0.84em;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.6;
+            border-bottom: 1px solid #2a2a3a;
+            outline: none;
+        }
+        .cmd-output:focus {
+            background: #16213e;
+            box-shadow: inset 0 0 0 2px #3498db;
+        }
+        .edit-hint {
+            background: #FFF8E1;
+            border-left: 4px solid #F39C12;
+            padding: 8px 16px;
+            font-size: 0.82em;
+            color: #856404;
+        }
+        /* ─── 错误框 ─── */
+        .error-box {
+            background: #ffeaea;
+            border-left: 4px solid #e74c3c;
+            padding: 12px 18px;
+            margin: 15px;
+            border-radius: 4px;
+            color: #c0392b;
+        }
+        /* ─── AI 分析区块 ─── */
+        .ai-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .ai-section-title {
+            background: linear-gradient(90deg, #6C63FF, #3498DB);
+            color: white;
+            padding: 10px 20px;
+            font-size: 0.95em;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .ai-content {
+            padding: 16px 20px;
+            font-size: 0.93em;
+            line-height: 1.8;
+            color: #333;
+            white-space: pre-wrap;
+        }
+        /* ─── 底部版权 ─── */
+        .footer {
+            background: #2C3E50;
+            color: #7FB3D3;
+            text-align: center;
+            padding: 16px;
+            font-size: 0.82em;
+            letter-spacing: 0.5px;
+        }
+        .footer .copyright { color: #A8C7E8; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+<!-- 品牌栏 -->
+<div class="brand-bar">
+    <div>
+        <div class="company">四川新数网络科技有限公司</div>
+        <div class="sys-name">网络设备巡检系统</div>
+    </div>
+    <div class="version">V1.0.0</div>
+</div>
+
+<!-- 项目标题 -->
+<div class="project-header">
+    <h1>&#x1F4CB; 四川新数网络巡检项目2025</h1>
+    <div class="sub">巡检报告  ·  生成时间：2026-03-22 10:37:37</div>
+</div>
+
+<div class="container">
+
+    <!-- 设备信息 -->
+    <div class="section">
+        <div class="section-title">&#x1F5A5; 设备信息</div>
+        <table class="info-table">
+            <tr>
+                <td>设备名称</td><td>核心交换机-01</td>
+                <td>IP 地址</td><td>192.168.0.3</td>
+            </tr>
+            <tr>
+                <td>设备类型</td><td>h3c</td>
+                <td>巡检时间</td><td>2026-03-22 10:37:37</td>
+            </tr>
+            <tr>
+                <td>连接协议</td><td>TELNET</td>
+                <td>端口号</td><td>23</td>
+            </tr>
+        </table>
+    </div>
+
+    
+
+    <!-- 命令输出 -->
+    <div class="section">
+        <div class="section-title">&#x1F4E1; 巡检命令输出</div>
+        <div class="edit-hint">&#x270F;  以下输出区域支持直接编辑，修改后可通过浏览器【另存为】保存修订版本。</div>
+        
+        <div class="cmd-block">
+            <div class="cmd-header">&#x25B6; display version</div>
+            <pre class="cmd-output" contenteditable="true">H3C Comware Software, Version 7.1.070, Release 3506P01
+Copyright (c) 2004-2023 New H3C Technologies Co., Ltd.</pre>
+        </div>
+        <div class="cmd-block">
+            <div class="cmd-header">&#x25B6; display cpu-usage</div>
+            <pre class="cmd-output" contenteditable="true">Slot 1: CPU usage:  12% in last 5 seconds
+         15% in last 1 minute</pre>
+        </div>
+        <div class="cmd-block">
+            <div class="cmd-header">&#x25B6; display interface brief</div>
+            <pre class="cmd-output" contenteditable="true">Interface             Link Protocol Main IP      Description
+GE1/0/1               UP   UP      192.168.0.1  Uplink
+GE1/0/2               DOWN DOWN    --           Port2</pre>
+        </div>
+    </div>
+
+    <!-- AI 分析区块（占位，由 AiAnalyzer 填充） -->
+    <div class="ai-section" id="ai-analysis-section" style="display:none;">
+        <div class="ai-section-title">&#x1F916; AI 智能分析结果</div>
+        <div class="ai-content" id="ai-analysis-content"></div>
+    </div>
+
+</div>
+
+<!-- 版权页脚 -->
+<div class="footer">
+    <div>网络设备巡检系统  V1.0.0</div>
+    <div class="copyright">© 2024-2025 四川新数网络科技有限公司  版权所有  &nbsp;|&nbsp; 未经授权禁止复制或分发</div>
+</div>
+
+</body>
+</html>

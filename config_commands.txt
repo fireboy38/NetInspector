@@ -1,0 +1,44 @@
+[huawei]
+display version
+display ip interface brief
+display ip routing-table
+display arp
+display cpu-usage
+display memory-usage
+display current-configuration
+
+[h3c]
+display version
+display ip routing-table
+display interface brief
+display arp
+display cpu-usage
+display memory
+display device manuinfo
+display current-configuration
+
+[cisco]
+show version
+show ip interface brief
+show ip route
+show arp
+show processes cpu
+show processes memory
+show environment all
+show logging
+show running-config
+
+[ruijie]
+show version
+show ip interface brief
+show ip route
+show arp
+show processes cpu
+show processes memory
+show running-config
+
+[default]
+display version
+show version
+display current-configuration
+show running-config
