@@ -23,7 +23,7 @@ class SnapshotManagerDialog(QDialog):
         super().__init__(parent)
         self.snapshot_manager = snapshot_manager
         self.selected_snapshot = None
-        self.setWindowTitle("📸 快照管理")
+        self.setWindowTitle("快照管理")
         self.setMinimumSize(700, 500)
         self._init_ui()
         self._load_snapshots()
@@ -34,12 +34,12 @@ class SnapshotManagerDialog(QDialog):
 
         # 标题
         title = QLabel("配置快照管理")
-        title.setStyleSheet("font-size:16px; font-weight:bold; color:#2C3E50;")
+        title.setStyleSheet("font-size:15px; font-weight:600; color:#1A365D;")
         layout.addWidget(title)
 
         # 说明
         hint = QLabel("保存设备配置快照，用于后续对比变更。")
-        hint.setStyleSheet("color:#666; font-size:12px;")
+        hint.setStyleSheet("color:#6B7280; font-size:12px;")
         layout.addWidget(hint)
 
         # 筛选
@@ -63,30 +63,31 @@ class SnapshotManagerDialog(QDialog):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.setStyleSheet("""
-            QTableWidget { border:1px solid #DDD; border-radius:4px; }
-            QHeaderView::section { background:#2C3E50; color:white; padding:8px; font-weight:bold; }
-            QTableWidget::item { padding:6px; }
-            QTableWidget::item:selected { background:#3498DB; color:white; }
+            QTableWidget { border:1px solid #E5E7EB; border-radius:6px; background:white; }
+            QHeaderView::section { background:#1A365D; color:white; padding:8px; font-weight:600; border:none; border-right:1px solid rgba(255,255,255,0.1); }
+            QTableWidget::item { padding:6px 8px; border-bottom:1px solid #E5E7EB; color:#1F2937; }
+            QTableWidget::item:selected { background:#2563EB; color:white; }
+            QTableWidget::item:selected:alternate { background:#1D4ED8; color:white; }
         """)
         layout.addWidget(self.table)
 
         # 按钮
         btn_layout = QHBoxLayout()
         
-        self.btn_view = QPushButton("👁 查看详情")
+        self.btn_view = QPushButton("查看详情")
         self.btn_view.clicked.connect(self._view_snapshot)
         self.btn_view.setEnabled(False)
         btn_layout.addWidget(self.btn_view)
 
-        self.btn_compare = QPushButton("🔍 对比选中")
+        self.btn_compare = QPushButton("对比选中")
         self.btn_compare.clicked.connect(self._compare_snapshots)
         self.btn_compare.setEnabled(False)
         btn_layout.addWidget(self.btn_compare)
 
         btn_layout.addStretch()
 
-        self.btn_delete = QPushButton("🗑 删除")
-        self.btn_delete.setStyleSheet("background:#E74C3C; color:white;")
+        self.btn_delete = QPushButton("删除")
+        self.btn_delete.setStyleSheet("background:#DC2626; color:white; border:none; border-radius:4px; padding:6px 14px;")
         self.btn_delete.clicked.connect(self._delete_snapshot)
         self.btn_delete.setEnabled(False)
         btn_layout.addWidget(self.btn_delete)
@@ -259,7 +260,7 @@ class SnapshotCompareDialog(QDialog):
         self.snapshot_manager = snapshot_manager
         self.old_id = old_id
         self.new_id = new_id
-        self.setWindowTitle("🔍 配置对比")
+        self.setWindowTitle("配置对比")
         self.setMinimumSize(900, 600)
         self._init_ui()
         self._load_comparison()
@@ -270,7 +271,7 @@ class SnapshotCompareDialog(QDialog):
 
         # 标题
         self.title_label = QLabel("配置对比")
-        self.title_label.setStyleSheet("font-size:16px; font-weight:bold; color:#2C3E50;")
+        self.title_label.setStyleSheet("font-size:15px; font-weight:600; color:#1A365D;")
         layout.addWidget(self.title_label)
 
         # 对比结果表格
@@ -281,17 +282,17 @@ class SnapshotCompareDialog(QDialog):
         self.tree.setColumnWidth(2, 80)
         self.tree.setColumnWidth(3, 400)
         self.tree.setStyleSheet("""
-            QTreeWidget { border:1px solid #DDD; border-radius:4px; }
-            QHeaderView::section { background:#2C3E50; color:white; padding:8px; font-weight:bold; }
-            QTreeWidget::item { padding:6px; }
-            QTreeWidget::item:selected { background:#3498DB; color:white; }
+            QTreeWidget { border:1px solid #E5E7EB; border-radius:6px; background:white; }
+            QHeaderView::section { background:#1A365D; color:white; padding:8px; font-weight:600; border:none; }
+            QTreeWidget::item { padding:5px 8px; border-bottom:1px solid #F3F4F6; color:#1F2937; }
+            QTreeWidget::item:selected { background:#2563EB; color:white; }
         """)
         layout.addWidget(self.tree)
 
         # 按钮
         btn_layout = QHBoxLayout()
         
-        self.btn_export = QPushButton("📄 导出HTML报告")
+        self.btn_export = QPushButton("导出HTML报告")
         self.btn_export.clicked.connect(self._export_report)
         btn_layout.addWidget(self.btn_export)
 
@@ -311,7 +312,7 @@ class SnapshotCompareDialog(QDialog):
             old_snap = self.snapshot_manager.load_snapshot(self.old_id)
             new_snap = self.snapshot_manager.load_snapshot(self.new_id)
             
-            self.title_label.setText(f"🔍 配置对比: {old_snap.device_name} - "
+            self.title_label.setText(f"配置对比: {old_snap.device_name} - "
                                     f"{old_snap.created_at[:10]} vs {new_snap.created_at[:10]}")
 
             self.tree.clear()
@@ -320,11 +321,11 @@ class SnapshotCompareDialog(QDialog):
                 item.setText(0, result.command)
                 
                 if result.has_changed:
-                    item.setText(1, "🔴 变更")
-                    item.setBackground(1, QColor("#F8D7DA"))
+                    item.setText(1, "变更")
+                    item.setBackground(1, QColor("#FEE2E2"))
                 else:
-                    item.setText(1, "🟢 一致")
-                    item.setBackground(1, QColor("#D4EDDA"))
+                    item.setText(1, "一致")
+                    item.setBackground(1, QColor("#D1FAE5"))
                 
                 item.setText(2, f"{result.similarity*100:.1f}%")
                 
@@ -337,13 +338,13 @@ class SnapshotCompareDialog(QDialog):
                         child = QTreeWidgetItem(item)
                         child.setText(0, "删除:")
                         child.setText(3, f"{len(result.removed_lines)} 行")
-                        child.setForeground(3, QColor("#E74C3C"))
+                        child.setForeground(3, QColor("#DC2626"))
                     
                     if result.added_lines:
                         child = QTreeWidgetItem(item)
                         child.setText(0, "新增:")
                         child.setText(3, f"{len(result.added_lines)} 行")
-                        child.setForeground(3, QColor("#27AE60"))
+                        child.setForeground(3, QColor("#059669"))
                 else:
                     item.setText(3, "无变更")
                 

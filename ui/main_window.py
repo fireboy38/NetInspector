@@ -42,18 +42,22 @@ class InspectionSignals(QThread):
 
 
 # ─── 颜色常量 ─────────────────────────────────────────────────────────
-COLOR_BG = "#F0F2F5"
-COLOR_HEADER = "#2C3E50"
-COLOR_ACCENT = "#3498DB"
-COLOR_SUCCESS = "#27AE60"
-COLOR_DANGER = "#E74C3C"
-COLOR_WARNING = "#F39C12"
-COLOR_WHITE = "#FFFFFF"
-COLOR_LOG_BG = "#1A1A2E"
-COLOR_LOG_INFO = "#A8D8A8"
-COLOR_LOG_DEBUG = "#7FB3D3"
-COLOR_LOG_ERROR = "#FF6B6B"
-COLOR_LOG_WARN = "#FFD93D"
+# 工业/实用主义配色方案 - 专业工具风格
+COLOR_BG = "#F5F7FA"                    # 主背景 - 浅灰蓝
+COLOR_CARD = "#FFFFFF"                  # 卡片背景
+COLOR_HEADER = "#1A365D"                # 深海蓝 - 主色调
+COLOR_ACCENT = "#2563EB"                # 科技蓝 - 强调色
+COLOR_SUCCESS = "#059669"               # 深绿 - 成功
+COLOR_DANGER = "#DC2626"                # 红 - 危险/错误
+COLOR_WARNING = "#D97706"               # 琥珀 - 警告
+COLOR_TEXT_PRIMARY = "#1F2937"          # 主要文字
+COLOR_TEXT_SECONDARY = "#6B7280"        # 次要文字
+COLOR_BORDER = "#E5E7EB"                # 边框
+COLOR_LOG_BG = "#0F172A"                # 日志背景 - 深蓝黑
+COLOR_LOG_INFO = "#34D399"              # 日志信息 - 翠绿
+COLOR_LOG_DEBUG = "#60A5FA"             # 日志调试 - 浅蓝
+COLOR_LOG_ERROR = "#F87171"             # 日志错误 - 浅红
+COLOR_LOG_WARN = "#FBBF24"              # 日志警告 - 金黄
 
 
 class MainWindow(QMainWindow):
@@ -212,15 +216,15 @@ class MainWindow(QMainWindow):
         row1.addStretch()
 
         # 开始/停止 放在最右侧
-        self.btn_start = QPushButton("▶  开始巡检")
+        self.btn_start = QPushButton("开始巡检")
         self.btn_start.setObjectName("btn_start")
-        self.btn_start.setFixedSize(120, 36)
+        self.btn_start.setFixedSize(100, 36)
         self.btn_start.clicked.connect(self._start_inspection)
         row1.addWidget(self.btn_start)
 
-        self.btn_stop = QPushButton("■  停止巡检")
+        self.btn_stop = QPushButton("停止巡检")
         self.btn_stop.setObjectName("btn_stop")
-        self.btn_stop.setFixedSize(120, 36)
+        self.btn_stop.setFixedSize(100, 36)
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self._stop_inspection)
         row1.addWidget(self.btn_stop)
@@ -253,9 +257,9 @@ class MainWindow(QMainWindow):
 
         row2.addWidget(self._vline())
 
-        self.btn_timer = QPushButton("⏰ 定时巡检")
+        self.btn_timer = QPushButton("定时巡检")
         self.btn_timer.setObjectName("btn_secondary")
-        self.btn_timer.setFixedSize(90, 28)
+        self.btn_timer.setFixedSize(80, 28)
         self.btn_timer.clicked.connect(self._show_timer_dialog)
         row2.addWidget(self.btn_timer)
 
@@ -308,7 +312,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._vline())
 
         # 报表定制按钮
-        self.btn_report_custom = QPushButton("📊 报表定制")
+        self.btn_report_custom = QPushButton("报表定制")
         self.btn_report_custom.setObjectName("btn_action_highlight")
         self.btn_report_custom.clicked.connect(self._show_report_custom)
         layout.addWidget(self.btn_report_custom)
@@ -316,7 +320,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._vline())
 
         # AI 配置按钮（带状态指示）
-        self.btn_ai = QPushButton("🤖 AI 配置")
+        self.btn_ai = QPushButton("AI 配置")
         self.btn_ai.setObjectName("btn_ai_off")
         self.btn_ai.clicked.connect(self._show_ai_config)
         layout.addWidget(self.btn_ai)
@@ -324,7 +328,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._vline())
 
         # 快照管理按钮
-        self.btn_snapshot = QPushButton("📸 快照管理")
+        self.btn_snapshot = QPushButton("快照管理")
         self.btn_snapshot.setObjectName("btn_action")
         self.btn_snapshot.clicked.connect(self._show_snapshot_manager)
         layout.addWidget(self.btn_snapshot)
@@ -348,7 +352,7 @@ class MainWindow(QMainWindow):
 
         # 标题行
         title_row = QHBoxLayout()
-        icon_label = QLabel("⚙  设备列表")
+        icon_label = QLabel("设备列表")
         icon_label.setObjectName("section_title")
         title_row.addWidget(icon_label)
         title_row.addStretch()
@@ -389,7 +393,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(4)
 
         title_row = QHBoxLayout()
-        icon_label = QLabel("📋  执行日志")
+        icon_label = QLabel("执行日志")
         icon_label.setObjectName("section_title")
         title_row.addWidget(icon_label)
         title_row.addStretch()
@@ -475,10 +479,10 @@ class MainWindow(QMainWindow):
             if item_ip and item_ip.text() == host:
                 status_item = QTableWidgetItem()
                 if status == 'success':
-                    status_item.setText('✔ 成功')
+                    status_item.setText('成功')
                     status_item.setForeground(QColor(COLOR_SUCCESS))
                 elif status == 'failed':
-                    status_item.setText('✘ 失败')
+                    status_item.setText('失败')
                     status_item.setForeground(QColor(COLOR_DANGER))
                 else:
                     status_item.setText('取消')
@@ -751,11 +755,11 @@ class MainWindow(QMainWindow):
             # 更新按钮样式
             if self.ai_config.get('enabled'):
                 self.btn_ai.setObjectName("btn_ai_on")
-                self.btn_ai.setText("🤖 AI 已开启")
+                self.btn_ai.setText("AI 已开启")
                 self._append_log('INFO', f"AI 分析已启用：{self.ai_config.get('model','')}")
             else:
                 self.btn_ai.setObjectName("btn_ai_off")
-                self.btn_ai.setText("🤖 AI 配置")
+                self.btn_ai.setText("AI 配置")
             # 刷新样式
             self.btn_ai.style().unpolish(self.btn_ai)
             self.btn_ai.style().polish(self.btn_ai)
@@ -870,161 +874,185 @@ class MainWindow(QMainWindow):
     # ═══════════════════════════════════════════════════════════════════
     def _apply_style(self):
         self.setStyleSheet(f"""
+            /* ============================================================
+               NetInspector - 工业实用主义风格样式表
+               ============================================================ */
+            
             QMainWindow {{
                 background: {COLOR_BG};
             }}
             QWidget {{
-                font-family: "Microsoft YaHei", "Segoe UI", Arial;
+                font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
                 font-size: 13px;
+                color: {COLOR_TEXT_PRIMARY};
             }}
+            
+            /* 顶部工具栏 */
             QFrame#toolbar {{
                 background: {COLOR_HEADER};
-                border-radius: 6px;
+                border-radius: 8px;
             }}
             QFrame#toolbar QLabel {{
-                color: #CCC;
+                color: #CBD5E1;
                 font-size: 12px;
             }}
             QFrame#toolbar QLineEdit {{
-                background: rgba(255,255,255,0.12);
-                color: white;
-                border: 1px solid rgba(255,255,255,0.25);
+                background: rgba(255,255,255,0.1);
+                color: #F1F5F9;
+                border: 1px solid rgba(255,255,255,0.15);
                 border-radius: 4px;
-                padding: 4px 8px;
+                padding: 4px 10px;
+                selection-background-color: {COLOR_ACCENT};
             }}
+            QFrame#toolbar QLineEdit:focus {{
+                border: 1px solid {COLOR_ACCENT};
+            }}
+            
+            /* 操作按钮栏 */
             QFrame#actionbar {{
-                background: {COLOR_WHITE};
-                border-radius: 6px;
-                border: 1px solid #E0E0E0;
-            }}
-            QFrame#device_panel, QFrame#log_panel {{
-                background: {COLOR_WHITE};
+                background: {COLOR_CARD};
                 border-radius: 8px;
-                border: 1px solid #E5E8ED;
+                border: 1px solid {COLOR_BORDER};
             }}
+            
+            /* 设备面板和日志面板 - 卡片式设计 */
+            QFrame#device_panel, QFrame#log_panel {{
+                background: {COLOR_CARD};
+                border-radius: 10px;
+                border: 1px solid {COLOR_BORDER};
+            }}
+            
             QLabel#section_title {{
                 font-size: 13px;
-                font-weight: bold;
+                font-weight: 600;
                 color: {COLOR_HEADER};
-                padding: 2px 0;
+                padding: 4px 0;
             }}
             QLabel#device_count {{
-                color: #888;
+                color: {COLOR_TEXT_SECONDARY};
                 font-size: 12px;
             }}
-            /* 表格 */
+            
+            /* 表格样式 - 清晰专业 */
             QTableWidget#device_table {{
                 border: none;
-                gridline-color: #E8ECF0;
-                selection-background-color: #1565C0;
-                alternate-background-color: #F4F8FE;
+                gridline-color: {COLOR_BORDER};
+                selection-background-color: {COLOR_ACCENT};
+                alternate-background-color: #F8FAFC;
                 background: white;
+                font-size: 13px;
             }}
             QTableWidget#device_table QHeaderView::section {{
                 background: {COLOR_HEADER};
                 color: white;
-                padding: 6px 8px;
-                font-weight: bold;
+                padding: 8px 10px;
+                font-weight: 600;
                 font-size: 12px;
                 border: none;
-                border-right: 1px solid #3D5570;
+                border-right: 1px solid rgba(255,255,255,0.1);
             }}
             QTableWidget#device_table::item {{
-                padding: 4px 8px;
-                border-bottom: 1px solid #F0F0F0;
-                color: #2C3E50;
+                padding: 6px 10px;
+                border-bottom: 1px solid {COLOR_BORDER};
+                color: {COLOR_TEXT_PRIMARY};
             }}
             QTableWidget#device_table::item:selected {{
-                background: #1565C0;
+                background: {COLOR_ACCENT};
                 color: white;
             }}
-            QTableWidget#device_table::item:selected:alternate {{
-                background: #1976D2;
-                color: white;
-            }}
-            /* 日志 */
+            
+            /* 日志视图 - 深色主题 */
             QTextEdit#log_view {{
                 background: {COLOR_LOG_BG};
                 color: {COLOR_LOG_INFO};
                 border: none;
-                border-radius: 4px;
-                padding: 6px;
+                border-radius: 6px;
+                padding: 8px;
+                font-family: "JetBrains Mono", "Consolas", monospace;
                 font-size: 12px;
+                line-height: 1.5;
             }}
-            /* 按钮 */
+            
+            /* 主要按钮 - 开始巡检 */
             QPushButton#btn_start {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #2ECC71, stop:1 #27AE60);
+                background: {COLOR_SUCCESS};
                 color: white;
                 border: none;
                 border-radius: 6px;
-                font-weight: bold;
+                font-weight: 600;
                 font-size: 13px;
             }}
             QPushButton#btn_start:hover {{
-                background: #2ECC71;
+                background: #047857;
             }}
             QPushButton#btn_start:disabled {{
-                background: #95A5A6;
+                background: #9CA3AF;
             }}
+            
+            /* 次要按钮 - 停止巡检 */
             QPushButton#btn_stop {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #E74C3C, stop:1 #C0392B);
+                background: {COLOR_DANGER};
                 color: white;
                 border: none;
                 border-radius: 6px;
-                font-weight: bold;
+                font-weight: 600;
                 font-size: 13px;
             }}
             QPushButton#btn_stop:hover {{
-                background: #E74C3C;
+                background: #B91C1C;
             }}
             QPushButton#btn_stop:disabled {{
-                background: #95A5A6;
+                background: #9CA3AF;
             }}
+            
+            /* 工具栏次要按钮 */
             QPushButton#btn_secondary {{
-                background: rgba(255,255,255,0.15);
-                color: #CCC;
-                border: 1px solid rgba(255,255,255,0.2);
+                background: rgba(255,255,255,0.1);
+                color: #E2E8F0;
+                border: 1px solid rgba(255,255,255,0.15);
                 border-radius: 4px;
-                padding: 4px 8px;
+                padding: 4px 10px;
             }}
             QPushButton#btn_secondary:hover {{
-                background: rgba(255,255,255,0.25);
+                background: rgba(255,255,255,0.2);
                 color: white;
             }}
+            
+            /* 操作按钮 */
             QPushButton#btn_action {{
-                background: white;
-                color: {COLOR_HEADER};
-                border: 1px solid #D0D5DD;
+                background: {COLOR_CARD};
+                color: {COLOR_TEXT_PRIMARY};
+                border: 1px solid {COLOR_BORDER};
                 border-radius: 5px;
-                padding: 5px 14px;
+                padding: 6px 14px;
                 font-size: 12px;
             }}
             QPushButton#btn_action:hover {{
-                background: #EBF5FB;
+                background: #EFF6FF;
                 border-color: {COLOR_ACCENT};
                 color: {COLOR_ACCENT};
             }}
+            
+            /* 高亮操作按钮 */
             QPushButton#btn_action_highlight {{
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
-                    stop:0 #E8F5E9, stop:1 #E3F2FD);
-                color: #1565C0;
-                border: 1px solid #90CAF9;
+                background: #EFF6FF;
+                color: {COLOR_ACCENT};
+                border: 1px solid #BFDBFE;
                 border-radius: 5px;
-                padding: 5px 14px;
+                padding: 6px 14px;
                 font-size: 12px;
-                font-weight: bold;
+                font-weight: 600;
             }}
             QPushButton#btn_action_highlight:hover {{
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
-                    stop:0 #C8E6C9, stop:1 #BBDEFB);
-                border-color: #1565C0;
+                background: #DBEAFE;
+                border-color: {COLOR_ACCENT};
             }}
+            
+            /* 小按钮 */
             QPushButton#btn_tiny {{
                 background: transparent;
-                color: #888;
-                border: 1px solid #DDD;
+                color: {COLOR_TEXT_SECONDARY};
+                border: 1px solid {COLOR_BORDER};
                 border-radius: 3px;
                 padding: 2px 8px;
                 font-size: 11px;
@@ -1033,46 +1061,56 @@ class MainWindow(QMainWindow):
                 color: {COLOR_ACCENT};
                 border-color: {COLOR_ACCENT};
             }}
+            
+            /* AI 配置按钮 - 关闭状态 */
             QPushButton#btn_ai_off {{
-                background: white;
-                color: #888;
-                border: 1px solid #D0D5DD;
+                background: {COLOR_CARD};
+                color: {COLOR_TEXT_SECONDARY};
+                border: 1px solid {COLOR_BORDER};
                 border-radius: 5px;
-                padding: 5px 14px;
+                padding: 6px 14px;
                 font-size: 12px;
             }}
             QPushButton#btn_ai_off:hover {{
-                background: #FFF8E1;
-                border-color: #F39C12;
-                color: #E67E22;
+                background: #FFFBEB;
+                border-color: {COLOR_WARNING};
+                color: {COLOR_WARNING};
             }}
+            
+            /* AI 配置按钮 - 开启状态 */
             QPushButton#btn_ai_on {{
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
-                    stop:0 #6C63FF, stop:1 #3498DB);
+                background: {COLOR_ACCENT};
                 color: white;
                 border: none;
                 border-radius: 5px;
-                padding: 5px 14px;
+                padding: 6px 14px;
                 font-size: 12px;
-                font-weight: bold;
+                font-weight: 600;
             }}
             QPushButton#btn_ai_on:hover {{
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
-                    stop:0 #7B72FF, stop:1 #2980B9);
+                background: #1D4ED8;
             }}
+            
+            /* 数字输入框 */
             QSpinBox {{
-                background: rgba(255,255,255,0.15);
-                color: white;
-                border: 1px solid rgba(255,255,255,0.25);
+                background: rgba(255,255,255,0.1);
+                color: #F1F5F9;
+                border: 1px solid rgba(255,255,255,0.15);
                 border-radius: 4px;
-                padding: 3px 5px;
+                padding: 3px 6px;
             }}
+            QSpinBox::up-button, QSpinBox::down-button {{
+                background: rgba(255,255,255,0.1);
+                border: none;
+            }}
+            
+            /* 下拉框 */
             QComboBox {{
-                background: rgba(255,255,255,0.15);
-                color: white;
-                border: 1px solid rgba(255,255,255,0.25);
+                background: rgba(255,255,255,0.1);
+                color: #F1F5F9;
+                border: 1px solid rgba(255,255,255,0.15);
                 border-radius: 4px;
-                padding: 3px 8px;
+                padding: 3px 10px;
             }}
             QComboBox::drop-down {{
                 border: none;
@@ -1081,25 +1119,35 @@ class MainWindow(QMainWindow):
                 background: {COLOR_HEADER};
                 color: white;
                 selection-background-color: {COLOR_ACCENT};
+                border: 1px solid rgba(255,255,255,0.1);
             }}
+            
+            /* 进度条 */
             QProgressBar {{
                 border: none;
                 border-radius: 3px;
-                background: #E8ECF0;
+                background: #E2E8F0;
+                height: 6px;
             }}
             QProgressBar::chunk {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {COLOR_ACCENT}, stop:1 {COLOR_SUCCESS});
+                background: {COLOR_ACCENT};
                 border-radius: 3px;
             }}
+            
+            /* 状态栏 */
             QStatusBar {{
-                background: #F8F9FA;
-                border-top: 1px solid #E0E0E0;
+                background: #F8FAFC;
+                border-top: 1px solid {COLOR_BORDER};
                 font-size: 12px;
-                color: #555;
+                color: {COLOR_TEXT_SECONDARY};
             }}
+            
+            /* 分隔器 */
             QSplitter::handle {{
-                background: #E5E8ED;
-                height: 4px;
+                background: {COLOR_BORDER};
+                height: 3px;
+            }}
+            QSplitter::handle:hover {{
+                background: {COLOR_ACCENT};
             }}
         """)
