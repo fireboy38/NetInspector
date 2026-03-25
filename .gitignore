@@ -10,7 +10,7 @@ build/
 *.egg
 
 # PyInstaller
-*.spec
+# *.spec  # 保留 spec 文件用于云编译
 *.log
 
 # IDE
