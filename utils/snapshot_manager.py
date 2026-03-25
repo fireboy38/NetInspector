@@ -124,8 +124,10 @@ class SnapshotManager:
         """获取快照列表"""
         snapshots = self._index.get('snapshots', [])
         if device_host:
-            snapshots = [s for s in snapshots if s['device_host'] == device_host]
-        return sorted(snapshots, key=lambda x: x['created_at'], reverse=True)
+            snapshots = [s for s in snapshots if s.get('device_host') == device_host]
+        # 过滤掉无效的快照数据
+        snapshots = [s for s in snapshots if s.get('created_at')]
+        return sorted(snapshots, key=lambda x: x.get('created_at', ''), reverse=True)
     
     def load_snapshot(self, snapshot_id: str) -> Optional[Snapshot]:
         """加载指定快照"""

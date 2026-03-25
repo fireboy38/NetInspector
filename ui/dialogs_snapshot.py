@@ -102,51 +102,69 @@ class SnapshotManagerDialog(QDialog):
 
     def _load_snapshots(self):
         """加载快照列表"""
-        snapshots = self.snapshot_manager.get_snapshots()
-        
-        # 更新设备筛选列表
-        devices = set(s['device_host'] for s in snapshots)
-        current_text = self.combo_device.currentText()
-        self.combo_device.clear()
-        self.combo_device.addItem("全部设备")
-        for device in sorted(devices):
-            self.combo_device.addItem(device)
-        if current_text in [self.combo_device.itemText(i) for i in range(self.combo_device.count())]:
-            self.combo_device.setCurrentText(current_text)
+        try:
+            snapshots = self.snapshot_manager.get_snapshots()
+            
+            # 更新设备筛选列表（断开信号避免递归）
+            self.combo_device.currentTextChanged.disconnect(self._on_filter_changed)
+            devices = set(s.get('device_host', '') for s in snapshots if s.get('device_host'))
+            current_text = self.combo_device.currentText()
+            self.combo_device.clear()
+            self.combo_device.addItem("全部设备")
+            for device in sorted(devices):
+                self.combo_device.addItem(device)
+            if current_text in [self.combo_device.itemText(i) for i in range(self.combo_device.count())]:
+                self.combo_device.setCurrentText(current_text)
+            self.combo_device.currentTextChanged.connect(self._on_filter_changed)
 
-        # 填充表格
-        self.table.setRowCount(len(snapshots))
-        for i, snap in enumerate(snapshots):
-            # 时间
-            dt = snap['created_at'][:19].replace('T', ' ')
-            self.table.setItem(i, 0, QTableWidgetItem(dt))
-            # 设备名
-            self.table.setItem(i, 1, QTableWidgetItem(snap['device_name']))
-            # IP
-            self.table.setItem(i, 2, QTableWidgetItem(snap['device_host']))
-            # 描述
-            self.table.setItem(i, 3, QTableWidgetItem(snap['description']))
-            # ID (隐藏)
-            item = QTableWidgetItem(snap['id'])
-            item.setData(Qt.UserRole, snap['id'])
-            self.table.setItem(i, 4, item)
+            # 填充表格
+            self.table.setRowCount(len(snapshots))
+            for i, snap in enumerate(snapshots):
+                # 时间
+                created_at = snap.get('created_at', '')
+                dt = created_at[:19].replace('T', ' ') if created_at else ''
+                self.table.setItem(i, 0, QTableWidgetItem(dt))
+                # 设备名
+                self.table.setItem(i, 1, QTableWidgetItem(snap.get('device_name', '')))
+                # IP
+                self.table.setItem(i, 2, QTableWidgetItem(snap.get('device_host', '')))
+                # 描述
+                self.table.setItem(i, 3, QTableWidgetItem(snap.get('description', '')))
+                # ID (隐藏)
+                snap_id = snap.get('id', '')
+                item = QTableWidgetItem(snap_id)
+                item.setData(Qt.UserRole, snap_id)
+                self.table.setItem(i, 4, item)
+        except Exception as e:
+            import traceback
+            print(f"加载快照列表出错: {e}")
+            print(traceback.format_exc())
+            QMessageBox.warning(self, "错误", f"加载快照列表失败: {e}")
 
     def _on_filter_changed(self, text):
         """筛选设备"""
-        if text == "全部设备":
-            self._load_snapshots()
-        else:
-            snapshots = self.snapshot_manager.get_snapshots(text)
-            self.table.setRowCount(len(snapshots))
-            for i, snap in enumerate(snapshots):
-                dt = snap['created_at'][:19].replace('T', ' ')
-                self.table.setItem(i, 0, QTableWidgetItem(dt))
-                self.table.setItem(i, 1, QTableWidgetItem(snap['device_name']))
-                self.table.setItem(i, 2, QTableWidgetItem(snap['device_host']))
-                self.table.setItem(i, 3, QTableWidgetItem(snap['description']))
-                item = QTableWidgetItem(snap['id'])
-                item.setData(Qt.UserRole, snap['id'])
-                self.table.setItem(i, 4, item)
+        try:
+            if text == "全部设备":
+                self._load_snapshots()
+            else:
+                snapshots = self.snapshot_manager.get_snapshots(text)
+                self.table.setRowCount(len(snapshots))
+                for i, snap in enumerate(snapshots):
+                    created_at = snap.get('created_at', '')
+                    dt = created_at[:19].replace('T', ' ') if created_at else ''
+                    self.table.setItem(i, 0, QTableWidgetItem(dt))
+                    self.table.setItem(i, 1, QTableWidgetItem(snap.get('device_name', '')))
+                    self.table.setItem(i, 2, QTableWidgetItem(snap.get('device_host', '')))
+                    self.table.setItem(i, 3, QTableWidgetItem(snap.get('description', '')))
+                    snap_id = snap.get('id', '')
+                    item = QTableWidgetItem(snap_id)
+                    item.setData(Qt.UserRole, snap_id)
+                    self.table.setItem(i, 4, item)
+        except Exception as e:
+            import traceback
+            print(f"筛选快照出错: {e}")
+            print(traceback.format_exc())
+            QMessageBox.warning(self, "错误", f"筛选快照失败: {e}")
 
     def _on_selection_changed(self):
         """选择变化"""
