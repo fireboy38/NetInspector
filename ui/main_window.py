@@ -23,7 +23,9 @@ from PyQt5.QtGui import QFont, QColor, QPalette, QIcon, QTextCursor
 
 from core.inspector import InspectionEngine, DeviceInfo
 from utils.excel_parser import parse_excel, generate_template
+from utils.snapshot_manager import SnapshotManager
 from ui.dialogs import CommandEditorDialog, TimerDialog, AboutDialog, AddDeviceDialog, AiConfigDialog, ReportCustomDialog
+from ui.dialogs_snapshot import SnapshotManagerDialog, SnapshotCompareDialog
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,9 @@ class MainWindow(QMainWindow):
         self.timer_weekdays = []
         self.timer_obj = QTimer()
         self.output_dir = os.path.join(os.path.expanduser('~'), 'Desktop', 'NetInspector', '巡检结果')
+
+        # 快照管理器
+        self.snapshot_manager = SnapshotManager()
 
         # AI 配置
         self.ai_config = {
@@ -316,6 +321,14 @@ class MainWindow(QMainWindow):
         self.btn_ai.clicked.connect(self._show_ai_config)
         layout.addWidget(self.btn_ai)
 
+        layout.addWidget(self._vline())
+
+        # 快照管理按钮
+        self.btn_snapshot = QPushButton("📸 快照管理")
+        self.btn_snapshot.setObjectName("btn_action")
+        self.btn_snapshot.clicked.connect(self._show_snapshot_manager)
+        layout.addWidget(self.btn_snapshot)
+
         layout.addStretch()
 
         btn_about = QPushButton("关于")
@@ -496,15 +509,21 @@ class MainWindow(QMainWindow):
             self._append_log('INFO', '正在调用 AI 分析巡检报告，请稍候...')
             self._run_ai_analysis()
 
+        # 保存巡检结果用于快照
+        self._last_inspection_results = getattr(self.engine, 'completed_tasks', [])
+
         msg = QMessageBox(self)
         msg.setWindowTitle("巡检完成")
         msg.setText(f"巡检任务已全部完成！\n\n成功: {success} 台\n失败: {failed} 台")
         msg.setIcon(QMessageBox.Information)
         open_btn = msg.addButton("打开结果目录", QMessageBox.ActionRole)
+        snapshot_btn = msg.addButton("保存快照", QMessageBox.ActionRole)
         msg.addButton("确定", QMessageBox.AcceptRole)
         msg.exec_()
         if msg.clickedButton() == open_btn:
             self._open_output_dir()
+        elif msg.clickedButton() == snapshot_btn:
+            self._save_inspection_snapshot()
 
     def _append_log(self, level: str, msg: str):
         self.signals.log_signal.emit(level, msg)
@@ -740,6 +759,38 @@ class MainWindow(QMainWindow):
             # 刷新样式
             self.btn_ai.style().unpolish(self.btn_ai)
             self.btn_ai.style().polish(self.btn_ai)
+
+    def _show_snapshot_manager(self):
+        """显示快照管理对话框"""
+        dlg = SnapshotManagerDialog(self.snapshot_manager, self)
+        dlg.exec_()
+
+    def _save_inspection_snapshot(self):
+        """保存本次巡检结果为快照"""
+        tasks = getattr(self.engine, 'completed_tasks', [])
+        if not tasks:
+            QMessageBox.information(self, "提示", "没有可保存的巡检结果")
+            return
+
+        saved_count = 0
+        for task in tasks:
+            if task.status == 'success' and task.results:
+                try:
+                    self.snapshot_manager.create_snapshot(
+                        device_name=task.device.name,
+                        device_host=task.device.host,
+                        commands_output=task.results,
+                        description=f"巡检快照 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                    )
+                    saved_count += 1
+                except Exception as e:
+                    self._append_log('ERROR', f"保存快照失败 {task.device.host}: {e}")
+
+        if saved_count > 0:
+            QMessageBox.information(self, "成功", f"已保存 {saved_count} 个设备的配置快照")
+            self._append_log('INFO', f"已保存 {saved_count} 个设备的配置快照")
+        else:
+            QMessageBox.information(self, "提示", "没有成功保存任何快照")
 
     def _run_ai_analysis(self):
         """调用 AI 分析所有已生成的报告（整合后统一分析）"""

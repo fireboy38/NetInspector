@@ -141,6 +141,7 @@ class InspectionEngine:
 
     def __init__(self):
         self.tasks: List[InspectionTask] = []
+        self.completed_tasks: List[InspectionTask] = []  # 存储完成的任务
         self._stop_event = threading.Event()
         self._executor: Optional[ThreadPoolExecutor] = None
         self._futures = []
@@ -166,6 +167,7 @@ class InspectionEngine:
 
         # 构建任务列表
         self.tasks = []
+        self.completed_tasks = []  # 清空上次结果
         for dev in devices:
             cmds = commands_map.get(dev.platform) or commands_map.get('default', [])
             task = InspectionTask(dev, cmds, output_dir, output_format,
@@ -202,6 +204,9 @@ class InspectionEngine:
                 else:
                     failed_count[0] += 1
 
+            # 保存完成的任务
+            self.completed_tasks.append(task)
+            
             if self.on_task_done:
                 self.on_task_done(task)
             if self.on_progress:
