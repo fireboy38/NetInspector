@@ -1,0 +1,81 @@
+name: Build NetInspector EXE
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'README.md'
+      - '*.ps1'
+      - '.github/**'
+  workflow_dispatch:   # 允许手动触发
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 安装 Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      # 4. 编译 exe
+      - name: Build EXE with PyInstaller
+        run: |
+          python -m PyInstaller NetInspector.spec --clean
+
+      # 5. 上传编译产物（供下载查看）
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetInspector-Windows
+          path: dist/NetInspector.exe
+          retention-days: 30
+
+      # 6. 读取版本号（从 report_generator.py）
+      - name: Get version
+        id: get_version
+        shell: python
+        run: |
+          import re, os
+          with open("utils/report_generator.py", encoding="utf-8") as f:
+              content = f.read()
+          m = re.search(r'VERSION\s*=\s*"([^"]+)"', content)
+          version = m.group(1) if m else "V1.0.0"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"version={version}\n")
+
+      # 7. 如果是推送到 master，创建/更新 Release
+      - name: Create or Update Release
+        if: github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: ${{ steps.get_version.outputs.version }} 版本发布
+          body: |
+            ## 网络设备自动化巡检工具 ${{ steps.get_version.outputs.version }}
+
+            ### 下载说明
+            下载 `NetInspector.exe` 后直接双击运行，无需安装 Python 环境。
+
+            ### 系统要求
+            - Windows 10 / 11 (64位)
+
+            ### 联系方式
+            技术支持：diao@vip.qq.com
+          files: dist/NetInspector.exe
+          make_latest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
