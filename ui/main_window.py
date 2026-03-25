@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 主窗口 - NetInspector 网络设备自动化巡检工具
+现代化界面：侧边栏导航 + 内容区
 """
 
 import os
@@ -16,10 +17,11 @@ from PyQt5.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit,
     QFileDialog, QMessageBox, QSplitter, QFrame, QProgressBar,
     QAction, QToolBar, QStatusBar, QAbstractItemView, QCheckBox,
-    QScrollArea, QSizePolicy
+    QScrollArea, QSizePolicy, QStackedWidget, QListWidget, QListWidgetItem,
+    QListView, QDesktopWidget
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize
-from PyQt5.QtGui import QFont, QColor, QPalette, QIcon, QTextCursor
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize, QRect
+from PyQt5.QtGui import QFont, QColor, QPalette, QIcon, QTextCursor, QBrush, QPainter, QLinearGradient
 
 from core.inspector import InspectionEngine, DeviceInfo
 from utils.excel_parser import parse_excel, generate_template
@@ -30,37 +32,748 @@ from ui.dialogs_snapshot import SnapshotManagerDialog, SnapshotCompareDialog
 logger = logging.getLogger(__name__)
 
 
-# ─── 信号中继（线程安全） ───────────────────────────────────────────────
+# ─── 信号中继（线程安全） ─────────────────────────────────────────────
 class InspectionSignals(QThread):
-    log_signal = pyqtSignal(str, str)       # level, message
-    progress_signal = pyqtSignal(int, int)  # completed, total
-    task_done_signal = pyqtSignal(str, str) # host, status
-    all_done_signal = pyqtSignal(int, int)  # success, failed
+    log_signal = pyqtSignal(str, str)
+    progress_signal = pyqtSignal(int, int)
+    task_done_signal = pyqtSignal(str, str)
+    all_done_signal = pyqtSignal(int, int)
 
     def run(self):
         pass
 
 
 # ─── 颜色常量 ─────────────────────────────────────────────────────────
-# 工业/实用主义配色方案 - 专业工具风格
-COLOR_BG = "#F5F7FA"                    # 主背景 - 浅灰蓝
-COLOR_CARD = "#FFFFFF"                  # 卡片背景
-COLOR_HEADER = "#1A365D"                # 深海蓝 - 主色调
-COLOR_ACCENT = "#2563EB"                # 科技蓝 - 强调色
-COLOR_SUCCESS = "#059669"               # 深绿 - 成功
-COLOR_DANGER = "#DC2626"                # 红 - 危险/错误
-COLOR_WARNING = "#D97706"               # 琥珀 - 警告
-COLOR_TEXT_PRIMARY = "#1F2937"          # 主要文字
-COLOR_TEXT_SECONDARY = "#6B7280"        # 次要文字
-COLOR_BORDER = "#E5E7EB"                # 边框
-COLOR_LOG_BG = "#0F172A"                # 日志背景 - 深蓝黑
-COLOR_LOG_INFO = "#34D399"              # 日志信息 - 翠绿
-COLOR_LOG_DEBUG = "#60A5FA"             # 日志调试 - 浅蓝
-COLOR_LOG_ERROR = "#F87171"             # 日志错误 - 浅红
-COLOR_LOG_WARN = "#FBBF24"              # 日志警告 - 金黄
+COLORS = {
+    'sidebar_bg': '#0F172A',
+    'sidebar_selected': '#1E40AF',
+    'sidebar_hover': '#1E3A5F',
+    'sidebar_text': '#E2E8F0',
+    'sidebar_text_dim': '#94A3B8',
+    'main_bg': '#F1F5F9',
+    'card_bg': '#FFFFFF',
+    'primary': '#3B82F6',
+    'primary_hover': '#2563EB',
+    'success': '#10B981',
+    'warning': '#F59E0B',
+    'danger': '#EF4444',
+    'text_primary': '#1E293B',
+    'text_secondary': '#64748B',
+    'border': '#E2E8F0',
+    'log_bg': '#0F172A',
+    'log_text': '#10B981',
+}
+
+
+class ModernButton(QPushButton):
+    """现代化按钮"""
+    def __init__(self, text, icon=None, color='primary', parent=None):
+        super().__init__(text, parent)
+        self.color_type = color
+        self.setCursor(Qt.PointingHandCursor)
+        self._apply_style()
+
+    def _apply_style(self):
+        colors = {
+            'primary': (COLORS['primary'], COLORS['primary_hover']),
+            'success': ('#10B981', '#059669'),
+            'danger': ('#EF4444', '#DC2626'),
+            'secondary': ('#64748B', '#475569'),
+            'outline': ('transparent', '#F1F5F9'),
+        }
+        bg, bg_hover = colors.get(self.color_type, colors['primary'])
+
+        if self.color_type == 'outline':
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background: {bg};
+                    color: {COLORS['text_primary']};
+                    border: 1px solid {COLORS['border']};
+                    border-radius: 6px;
+                    padding: 8px 16px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background: {bg_hover};
+                    border-color: {COLORS['primary']};
+                }}
+            """)
+        else:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background: {bg};
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 16px;
+                    font-size: 13px;
+                    font-weight: 500;
+                }}
+                QPushButton:hover {{
+                    background: {bg_hover};
+                }}
+                QPushButton:disabled {{
+                    background: #CBD5E1;
+                    color: #94A3B8;
+                }}
+            """)
+
+
+class NavigationItem(QWidget):
+    """导航项组件"""
+    clicked = pyqtSignal(str)
+
+    def __init__(self, icon_text, label, page_id, parent=None):
+        super().__init__(parent)
+        self.page_id = page_id
+        self.icon_text = icon_text
+        self.label_text = label
+        self.is_selected = False
+        self.setCursor(Qt.PointingHandCursor)
+        self.setMinimumHeight(44)
+        self._init_ui()
+
+    def _init_ui(self):
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(16, 0, 16, 0)
+        layout.setSpacing(12)
+
+        self.icon_label = QLabel(self.icon_text)
+        self.icon_label.setFont(QFont("Segoe UI Emoji", 14))
+        self.icon_label.setFixedWidth(24)
+        layout.addWidget(self.icon_label)
+
+        self.text_label = QLabel(self.label_text)
+        self.text_label.setFont(QFont("Segoe UI", 13))
+        layout.addWidget(self.text_label)
+        layout.addStretch()
+
+    def set_selected(self, selected):
+        self.is_selected = selected
+        self.update_style()
+
+    def update_style(self):
+        if self.is_selected:
+            self.setStyleSheet(f"""
+                NavigationItem {{
+                    background: {COLORS['sidebar_selected']};
+                    border-left: 3px solid {COLORS['primary']};
+                }}
+                QLabel {{
+                    color: white;
+                }}
+            """)
+        else:
+            self.setStyleSheet(f"""
+                NavigationItem {{
+                    background: transparent;
+                }}
+                NavigationItem:hover {{
+                    background: {COLORS['sidebar_hover']};
+                }}
+                QLabel {{
+                    color: {COLORS['sidebar_text']};
+                }}
+            """)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit(self.page_id)
+
+
+class Sidebar(QWidget):
+    """侧边栏"""
+    page_changed = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.current_page = 'dashboard'
+        self.nav_items = {}
+        self._init_ui()
+        self._populate_nav()
+        self._select_page('dashboard')
+
+    def _init_ui(self):
+        self.setFixedWidth(220)
+        self.setStyleSheet(f"""
+            QWidget {{
+                background: {COLORS['sidebar_bg']};
+            }}
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Logo区域
+        logo_frame = QFrame()
+        logo_frame.setFixedHeight(64)
+        logo_frame.setStyleSheet(f"""
+            background: {COLORS['sidebar_bg']};
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        """)
+        logo_layout = QHBoxLayout(logo_frame)
+        logo_layout.setContentsMargins(16, 0, 16, 0)
+
+        logo_label = QLabel("NetInspector")
+        logo_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        logo_label.setStyleSheet("color: white;")
+        logo_layout.addWidget(logo_label)
+
+        logo_layout.addStretch()
+        version_label = QLabel("v1.0")
+        version_label.setFont(QFont("Segoe UI", 10))
+        version_label.setStyleSheet(f"color: {COLORS['sidebar_text_dim']};")
+        logo_layout.addWidget(version_label)
+
+        layout.addWidget(logo_frame)
+
+        # 导航列表
+        self.nav_container = QWidget()
+        self.nav_layout = QVBoxLayout(self.nav_container)
+        self.nav_layout.setContentsMargins(0, 8, 0, 8)
+        self.nav_layout.setSpacing(2)
+        layout.addWidget(self.nav_container, 1)
+
+        # 底部信息
+        bottom_frame = QFrame()
+        bottom_frame.setStyleSheet(f"""
+            border-top: 1px solid rgba(255,255,255,0.1);
+        """)
+        bottom_layout = QVBoxLayout(bottom_frame)
+        bottom_layout.setContentsMargins(16, 12, 16, 12)
+
+        status_label = QLabel("就绪")
+        status_label.setFont(QFont("Segoe UI", 11))
+        status_label.setStyleSheet(f"color: {COLORS['sidebar_text_dim']};")
+        bottom_layout.addWidget(status_label)
+
+        layout.addWidget(bottom_frame)
+
+    def _populate_nav(self):
+        nav_items = [
+            ("dashboard", "仪表盘"),
+            ("devices", "设备管理"),
+            ("inspection", "巡检任务"),
+            ("schedule", "定时设置"),
+            ("snapshot", "快照管理"),
+            ("ai", "AI 配置"),
+            ("report", "报表定制"),
+            ("about", "关于"),
+        ]
+
+        for page_id, label in nav_items:
+            item = NavigationItem("", label, page_id)
+            item.clicked.connect(self._on_item_clicked)
+            self.nav_layout.addWidget(item)
+            self.nav_items[page_id] = item
+
+    def _on_item_clicked(self, page_id):
+        self._select_page(page_id)
+        self.page_changed.emit(page_id)
+
+    def _select_page(self, page_id):
+        self.current_page = page_id
+        for pid, item in self.nav_items.items():
+            item.set_selected(pid == page_id)
+
+
+class StatusBar(QWidget):
+    """自定义状态栏"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._init_ui()
+
+    def _init_ui(self):
+        self.setFixedHeight(32)
+        self.setStyleSheet(f"""
+            background: {COLORS['card_bg']};
+            border-top: 1px solid {COLORS['border']};
+        """)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(16, 0, 16, 0)
+
+        self.status_label = QLabel("就绪")
+        self.status_label.setFont(QFont("Segoe UI", 11))
+        self.status_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
+
+        self.progress_label = QLabel("")
+        self.progress_label.setFont(QFont("Segoe UI", 11))
+        self.progress_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
+
+        layout.addWidget(self.status_label)
+        layout.addStretch()
+        layout.addWidget(self.progress_label)
+
+    def set_status(self, text):
+        self.status_label.setText(text)
+
+    def set_progress(self, text):
+        self.progress_label.setText(text)
+
+
+class PageDashboard(QWidget):
+    """仪表盘页面"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._init_ui()
+
+    def _init_ui(self):
+        self.setStyleSheet(f"background: {COLORS['main_bg']};")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(20)
+
+        # 标题
+        title = QLabel("仪表盘")
+        title.setFont(QFont("Segoe UI", 24, QFont.Bold))
+        title.setStyleSheet(f"color: {COLORS['text_primary']};")
+        layout.addWidget(title)
+
+        # 统计卡片
+        stats_layout = QHBoxLayout()
+
+        self.card_devices = self._create_stat_card("设备总数", "0", COLORS['primary'])
+        self.card_online = self._create_stat_card("在线设备", "0", COLORS['success'])
+        self.card_tasks = self._create_stat_card("巡检任务", "0", COLORS['warning'])
+        self.card_alerts = self._create_stat_card("异常告警", "0", COLORS['danger'])
+
+        stats_layout.addWidget(self.card_devices)
+        stats_layout.addWidget(self.card_online)
+        stats_layout.addWidget(self.card_tasks)
+        stats_layout.addWidget(self.card_alerts)
+        layout.addLayout(stats_layout)
+
+        # 最近巡检记录
+        recent_frame = self._create_card("最近巡检记录")
+        recent_layout = QVBoxLayout(recent_frame)
+
+        self.recent_list = QTextEdit()
+        self.recent_list.setReadOnly(True)
+        self.recent_list.setFont(QFont("JetBrains Mono", 10))
+        self.recent_list.setStyleSheet(f"""
+            QTextEdit {{
+                background: {COLORS['main_bg']};
+                border: none;
+                color: {COLORS['text_primary']};
+            }}
+        """)
+        recent_layout.addWidget(self.recent_list)
+        layout.addWidget(recent_frame, 1)
+
+    def _create_stat_card(self, title, value, color):
+        card = QFrame()
+        card.setFixedHeight(100)
+        card.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['card_bg']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+            }}
+        """)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(8)
+
+        title_label = QLabel(title)
+        title_label.setFont(QFont("Segoe UI", 12))
+        title_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
+
+        value_label = QLabel(value)
+        value_label.setFont(QFont("Segoe UI", 28, QFont.Bold))
+        value_label.setStyleSheet(f"color: {color};")
+
+        layout.addWidget(title_label)
+        layout.addWidget(value_label)
+        layout.addStretch()
+
+        return card
+
+    def _create_card(self, title):
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['card_bg']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+            }}
+        """)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(12)
+
+        title_label = QLabel(title)
+        title_label.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        title_label.setStyleSheet(f"color: {COLORS['text_primary']};")
+        layout.addWidget(title_label)
+
+        return card
+
+    def update_stats(self, devices=0, online=0, tasks=0, alerts=0):
+        self._update_card_value(self.card_devices, str(devices))
+        self._update_card_value(self.card_online, str(online))
+        self._update_card_value(self.card_tasks, str(tasks))
+        self._update_card_value(self.card_alerts, str(alerts))
+
+    def _update_card_value(self, card, value):
+        # 找到第二个子widget的value label
+        layout = card.layout()
+        if layout.count() >= 2:
+            value_label = layout.itemAt(1).widget()
+            if value_label:
+                value_label.setText(value)
+
+
+class PageDevices(QWidget):
+    """设备管理页面"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._init_ui()
+
+    def _init_ui(self):
+        self.setStyleSheet(f"background: {COLORS['main_bg']};")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        # 标题栏
+        header = QHBoxLayout()
+        title = QLabel("设备管理")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        title.setStyleSheet(f"color: {COLORS['text_primary']};")
+        header.addWidget(title)
+        header.addStretch()
+
+        self.btn_import = ModernButton("导入设备", color='primary')
+        self.btn_add = ModernButton("添加设备", color='outline')
+        self.btn_delete = ModernButton("删除选中", color='danger')
+        self.btn_clear = ModernButton("清空列表", color='secondary')
+
+        header.addWidget(self.btn_import)
+        header.addWidget(self.btn_add)
+        header.addWidget(self.btn_delete)
+        header.addWidget(self.btn_clear)
+
+        layout.addLayout(header)
+
+        # 设备表格
+        self.table = QTableWidget()
+        self.table.setColumnCount(8)
+        self.table.setHorizontalHeaderLabels(['设备名称', '设备类型', 'IP地址', '端口', '连接类型', '用户名', '密码', '状态'])
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.verticalHeader().setDefaultSectionSize(38)
+        self.table.setStyleSheet(f"""
+            QTableWidget {{
+                background: {COLORS['card_bg']};
+                border: 1px solid {COLORS['border']};
+                border-radius: 8px;
+                gridline-color: {COLORS['border']};
+            }}
+            QTableWidget::item {{
+                padding: 8px;
+                border-bottom: 1px solid {COLORS['border']};
+            }}
+            QHeaderView::section {{
+                background: {COLORS['sidebar_bg']};
+                color: white;
+                padding: 10px;
+                font-weight: 600;
+                border: none;
+            }}
+            QTableWidget::item:selected {{
+                background: {COLORS['primary']};
+                color: white;
+            }}
+        """)
+        layout.addWidget(self.table, 1)
+
+    def get_table(self):
+        return self.table
+
+
+class PageInspection(QWidget):
+    """巡检任务页面"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._init_ui()
+
+    def _init_ui(self):
+        self.setStyleSheet(f"background: {COLORS['main_bg']};")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        # 标题栏
+        header = QHBoxLayout()
+        title = QLabel("巡检任务")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        title.setStyleSheet(f"color: {COLORS['text_primary']};")
+        header.addWidget(title)
+        header.addStretch()
+
+        layout.addLayout(header)
+
+        # 配置卡片
+        config_card = QFrame()
+        config_card.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['card_bg']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+                padding: 20px;
+            }}
+        """)
+        config_layout = QGridLayout(config_card)
+
+        # 项目名称
+        config_layout.addWidget(QLabel("项目名称:"), 0, 0)
+        self.edit_project = QLineEdit()
+        self.edit_project.setPlaceholderText("请输入项目名称")
+        self.edit_project.setStyleSheet(f"""
+            QLineEdit {{
+                padding: 8px 12px;
+                border: 1px solid {COLORS['border']};
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border-color: {COLORS['primary']};
+            }}
+        """)
+        config_layout.addWidget(self.edit_project, 0, 1)
+
+        # 输出格式
+        config_layout.addWidget(QLabel("输出格式:"), 0, 2)
+        self.combo_format = QComboBox()
+        self.combo_format.addItems(["HTML", "TXT"])
+        self.combo_format.setStyleSheet(f"""
+            QComboBox {{
+                padding: 8px 12px;
+                border: 1px solid {COLORS['border']};
+                border-radius: 6px;
+            }}
+        """)
+        config_layout.addWidget(self.combo_format, 0, 3)
+
+        # 并发线程
+        config_layout.addWidget(QLabel("并发线程:"), 1, 0)
+        self.spin_threads = QSpinBox()
+        self.spin_threads.setRange(1, 50)
+        self.spin_threads.setValue(10)
+        self.spin_threads.setStyleSheet(f"""
+            QSpinBox {{
+                padding: 8px 12px;
+                border: 1px solid {COLORS['border']};
+                border-radius: 6px;
+            }}
+        """)
+        config_layout.addWidget(self.spin_threads, 1, 1)
+
+        # 保存目录
+        config_layout.addWidget(QLabel("保存目录:"), 2, 0)
+        self.edit_output_dir = QLineEdit()
+        self.edit_output_dir.setStyleSheet(f"""
+            QLineEdit {{
+                padding: 8px 12px;
+                border: 1px solid {COLORS['border']};
+                border-radius: 6px;
+            }}
+        """)
+        config_layout.addWidget(self.edit_output_dir, 2, 1, 1, 3)
+
+        config_layout.setColumnStretch(1, 1)
+        config_layout.setColumnStretch(3, 1)
+        config_layout.setHorizontalSpacing(16)
+        config_layout.setVerticalSpacing(12)
+
+        layout.addWidget(config_card)
+
+        # 操作按钮
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        self.btn_start = ModernButton("开始巡检", color='success')
+        self.btn_stop = ModernButton("停止巡检", color='danger')
+        self.btn_stop.setEnabled(False)
+
+        btn_layout.addWidget(self.btn_start)
+        btn_layout.addWidget(self.btn_stop)
+        layout.addLayout(btn_layout)
+
+        # 进度条
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setFixedHeight(8)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                background: {COLORS['border']};
+                border-radius: 4px;
+            }}
+            QProgressBar::chunk {{
+                background: {COLORS['primary']};
+                border-radius: 4px;
+            }}
+        """)
+        layout.addWidget(self.progress_bar)
+
+        # 日志面板
+        log_card = QFrame()
+        log_card.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['card_bg']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+            }}
+        """)
+        log_layout = QVBoxLayout(log_card)
+
+        log_title = QLabel("执行日志")
+        log_title.setFont(QFont("Segoe UI", 13, QFont.Bold))
+        log_title.setStyleSheet(f"color: {COLORS['text_primary']}; padding: 12px 16px 0;")
+        log_layout.addWidget(log_title)
+
+        self.log_view = QTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setFont(QFont("JetBrains Mono", 10))
+        self.log_view.setStyleSheet(f"""
+            QTextEdit {{
+                background: {COLORS['log_bg']};
+                color: {COLORS['log_text']};
+                border: none;
+                border-radius: 0 0 12px 12px;
+                padding: 12px;
+                font-size: 12px;
+            }}
+        """)
+        log_layout.addWidget(self.log_view, 1)
+
+        layout.addWidget(log_card, 1)
+
+
+class PageSchedule(QWidget):
+    """定时设置页面"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._init_ui()
+
+    def _init_ui(self):
+        self.setStyleSheet(f"background: {COLORS['main_bg']};")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        title = QLabel("定时设置")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        title.setStyleSheet(f"color: {COLORS['text_primary']};")
+        layout.addWidget(title)
+
+        # 定时配置卡片
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['card_bg']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+                padding: 24px;
+            }}
+        """)
+        card_layout = QVBoxLayout(card)
+
+        self.chk_timer = QCheckBox("启用定时巡检")
+        self.chk_timer.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        self.chk_timer.setStyleSheet(f"""
+            QCheckBox {{
+                spacing: 10px;
+                color: {COLORS['text_primary']};
+            }}
+            QCheckBox::indicator {{
+                width: 20px;
+                height: 20px;
+                border-radius: 4px;
+                border: 2px solid {COLORS['border']};
+            }}
+            QCheckBox::indicator:checked {{
+                background: {COLORS['primary']};
+                border-color: {COLORS['primary']};
+            }}
+        """)
+
+        time_layout = QHBoxLayout()
+        time_layout.addWidget(QLabel("执行时间:"))
+        self.time_edit = QComboBox()
+        for h in range(24):
+            self.time_edit.addItem(f"{h:02d}:00")
+        self.time_edit.setCurrentText("22:00")
+        self.time_edit.setStyleSheet(f"""
+            QComboBox {{
+                padding: 8px 12px;
+                border: 1px solid {COLORS['border']};
+                border-radius: 6px;
+            }}
+        """)
+        time_layout.addWidget(self.time_edit)
+        time_layout.addStretch()
+
+        self.btn_save_timer = ModernButton("保存设置", color='primary')
+
+        card_layout.addWidget(self.chk_timer)
+        card_layout.addLayout(time_layout)
+        card_layout.addWidget(self.btn_save_timer)
+        card_layout.addStretch()
+
+        layout.addWidget(card)
+
+
+class PageAbout(QWidget):
+    """关于页面"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._init_ui()
+
+    def _init_ui(self):
+        self.setStyleSheet(f"background: {COLORS['main_bg']};")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        title = QLabel("关于")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        title.setStyleSheet(f"color: {COLORS['text_primary']};")
+        layout.addWidget(title)
+
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['card_bg']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+            }}
+        """)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(32, 32, 32, 32)
+        card_layout.setSpacing(16)
+
+        card_layout.addWidget(QLabel("NetInspector"))
+        desc = QLabel("网络设备自动化巡检工具\n\n版本: 1.0.1\n\n面向 IT 运维人员的专业网络设备巡检解决方案，支持多厂商设备批量巡检、定时任务、配置快照对比和 AI 智能分析。")
+        desc.setFont(QFont("Segoe UI", 12))
+        desc.setStyleSheet(f"color: {COLORS['text_secondary']}; line-height: 180%;")
+        card_layout.addWidget(desc)
+        card_layout.addStretch()
+
+        layout.addWidget(card, 1)
 
 
 class MainWindow(QMainWindow):
+    """主窗口"""
     def __init__(self):
         super().__init__()
         self.engine = InspectionEngine()
@@ -68,66 +781,22 @@ class MainWindow(QMainWindow):
         self.devices = []
         self.commands_map = {}
         self.is_running = False
-        self.timer_active = False
-        self.timer_mode = 'daily'
-        self.timer_hour = 22
-        self.timer_min = 0
-        self.timer_weekdays = []
-        self.timer_obj = QTimer()
         self.output_dir = os.path.join(os.path.expanduser('~'), 'Desktop', 'NetInspector', '巡检结果')
-
-        # 快照管理器
         self.snapshot_manager = SnapshotManager()
-
-        # AI 配置
-        self.ai_config = {
-            'enabled':  False,
-            'endpoint': '',
-            'apikey':   '',
-            'model':    '',
-            'prompt':   '',
-        }
-
-        # 报表定制配置
-        self.report_config = {
-            'company':        '四川新数信息技术有限公司',
-            'theme_color':    '#2C3E50',
-            'accent_color':   '#3498DB',
-            'show_logo':      False,
-            'logo_path':      '',
-            'cover_title':    '',
-            'footer_text':    '© 2024-2025 四川新数信息技术有限公司  版权所有  未经授权禁止复制或分发',
-            'show_device_info':   True,
-            'show_cmd_output':    True,
-            'show_ai_section':    True,
-            'show_edit_hint':     True,
-            'report_font':        'Microsoft YaHei',
-            'watermark':          '',
-            'custom_css':         '',
-        }
 
         self._load_commands()
         self._init_ui()
         self._connect_signals()
-        self._apply_style()
+        self._append_log('INFO', '四川新数网络设备巡检系统 已启动')
 
-        self._append_log('INFO', '四川新数网络设备巡检系统 已启动  V1.0.1')
-        self._append_log('INFO', f'已加载命令配置，包含 {len(self.commands_map)} 种设备类型的命令')
-
-    # ═══════════════════════════════════════════════════════════════════
-    #  命令配置加载
-    # ═══════════════════════════════════════════════════════════════════
     def _load_commands(self):
-        """加载 config_commands.txt"""
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         cfg = os.path.join(base, 'config_commands.txt')
-        self.commands_map = {}
         self.commands_file = cfg
         if os.path.exists(cfg):
             self._parse_commands_file(cfg)
 
     def _parse_commands_file(self, path: str):
-        """解析命令配置文件"""
         self.commands_map = {}
         current_platform = 'default'
         with open(path, encoding='utf-8') as f:
@@ -141,298 +810,94 @@ class MainWindow(QMainWindow):
                 else:
                     self.commands_map.setdefault(current_platform, []).append(line)
 
-    # ═══════════════════════════════════════════════════════════════════
-    #  UI 初始化
-    # ═══════════════════════════════════════════════════════════════════
     def _init_ui(self):
-        self.setWindowTitle("四川新数 · 网络设备巡检系统 V1.0.1")
-        self.setMinimumSize(1160, 760)
-        self.resize(1360, 840)
+        self.setWindowTitle("NetInspector - 网络设备巡检系统")
+        self.resize(1280, 800)
+        self.setMinimumSize(1024, 680)
+
+        # 居中显示
+        screen = QDesktopWidget().screenGeometry()
+        self.move((screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2)
 
         central = QWidget()
         self.setCentralWidget(central)
-        main_layout = QVBoxLayout(central)
-        main_layout.setContentsMargins(10, 8, 10, 8)
-        main_layout.setSpacing(6)
+        main_layout = QHBoxLayout(central)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # ── 顶部工具栏 ──
-        main_layout.addWidget(self._build_toolbar())
-        # ── 功能按钮行 ──
-        main_layout.addWidget(self._build_action_bar())
-        # ── 中间内容区（设备表 + 日志） ──
-        splitter = QSplitter(Qt.Vertical)
-        splitter.addWidget(self._build_device_panel())
-        splitter.addWidget(self._build_log_panel())
-        # 使用 stretch factor 替代固定像素，让布局自适应
-        splitter.setStretchFactor(0, 6)  # 设备表占比大一些
-        splitter.setStretchFactor(1, 4)  # 日志区占比小一些
-        main_layout.addWidget(splitter, 1)
-        # ── 底部状态栏 ──
-        self._build_status_bar()
+        # 侧边栏
+        self.sidebar = Sidebar()
+        self.sidebar.page_changed.connect(self._on_page_changed)
+        main_layout.addWidget(self.sidebar)
 
-    def _build_toolbar(self) -> QWidget:
-        """顶部配置工具栏（双行布局）"""
-        bar = QFrame()
-        bar.setObjectName("toolbar")
-        outer = QVBoxLayout(bar)
-        outer.setContentsMargins(10, 8, 10, 8)
-        outer.setSpacing(6)
+        # 内容区
+        content = QWidget()
+        content.setStyleSheet(f"background: {COLORS['main_bg']};")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
 
-        # ── 第一子行：项目名称 + 输出格式 + 操作按钮 ──
-        row1 = QHBoxLayout()
-        row1.setSpacing(10)
+        # 页面堆栈
+        self.pages = QStackedWidget()
+        self.page_dashboard = PageDashboard()
+        self.page_devices = PageDevices()
+        self.page_inspection = PageInspection()
+        self.page_schedule = PageSchedule()
+        self.page_about = PageAbout()
 
-        lbl_proj = QLabel("项目名称:")
-        lbl_proj.setFixedWidth(64)
-        row1.addWidget(lbl_proj)
+        self.pages.addWidget(self.page_dashboard)
+        self.pages.addWidget(self.page_devices)
+        self.pages.addWidget(self.page_inspection)
+        self.pages.addWidget(self.page_schedule)
+        self.pages.addWidget(self.page_about)
 
-        self.edit_project = QLineEdit()
-        self.edit_project.setPlaceholderText("请输入项目名称（将写入报告标题）")
-        self.edit_project.setMinimumWidth(220)
-        self.edit_project.setFixedHeight(32)
-        row1.addWidget(self.edit_project, 2)
+        content_layout.addWidget(self.pages, 1)
 
-        row1.addWidget(self._vline())
+        # 状态栏
+        self.status_bar = StatusBar()
+        content_layout.addWidget(self.status_bar)
 
-        lbl_fmt = QLabel("输出格式:")
-        lbl_fmt.setFixedWidth(58)
-        row1.addWidget(lbl_fmt)
-        self.combo_format = QComboBox()
-        self.combo_format.addItems(["HTML", "TXT"])
-        self.combo_format.setFixedSize(74, 32)
-        row1.addWidget(self.combo_format)
+        main_layout.addWidget(content, 1)
 
-        row1.addWidget(self._vline())
+        # 连接设备页面按钮
+        self.page_devices.btn_import.clicked.connect(self._import_devices)
+        self.page_devices.btn_add.clicked.connect(self._add_device_manually)
+        self.page_devices.btn_delete.clicked.connect(self._delete_selected)
+        self.page_devices.btn_clear.clicked.connect(self._clear_devices)
 
-        lbl_thr = QLabel("并发线程:")
-        lbl_thr.setFixedWidth(58)
-        row1.addWidget(lbl_thr)
-        self.spin_threads = QSpinBox()
-        self.spin_threads.setRange(1, 50)
-        self.spin_threads.setValue(10)
-        self.spin_threads.setFixedSize(62, 32)
-        row1.addWidget(self.spin_threads)
+        # 连接巡检页面按钮
+        self.page_inspection.btn_start.clicked.connect(self._start_inspection)
+        self.page_inspection.btn_stop.clicked.connect(self._stop_inspection)
+        self.page_inspection.edit_output_dir.setText(self.output_dir)
 
-        row1.addStretch()
+        # 连接定时设置按钮
+        self.page_schedule.btn_save_timer.clicked.connect(self._save_timer_settings)
 
-        # 开始/停止 放在最右侧
-        self.btn_start = QPushButton("开始巡检")
-        self.btn_start.setObjectName("btn_start")
-        self.btn_start.setFixedSize(100, 36)
-        self.btn_start.clicked.connect(self._start_inspection)
-        row1.addWidget(self.btn_start)
+        # 更新仪表盘
+        self._update_dashboard()
 
-        self.btn_stop = QPushButton("停止巡检")
-        self.btn_stop.setObjectName("btn_stop")
-        self.btn_stop.setFixedSize(100, 36)
-        self.btn_stop.setEnabled(False)
-        self.btn_stop.clicked.connect(self._stop_inspection)
-        row1.addWidget(self.btn_stop)
+    def _on_page_changed(self, page_id):
+        page_map = {
+            'dashboard': 0,
+            'devices': 1,
+            'inspection': 2,
+            'schedule': 3,
+            'about': 4,
+        }
+        self.pages.setCurrentIndex(page_map.get(page_id, 0))
 
-        outer.addLayout(row1)
+        if page_id == 'dashboard':
+            self._update_dashboard()
 
-        # ── 第二子行：保存目录 + 定时 ──
-        row2 = QHBoxLayout()
-        row2.setSpacing(10)
+    def _update_dashboard(self):
+        device_count = self.page_devices.table.rowCount()
+        self.page_dashboard.update_stats(
+            devices=device_count,
+            online=0,
+            tasks=0,
+            alerts=0
+        )
 
-        lbl_dir = QLabel("保存目录:")
-        lbl_dir.setFixedWidth(64)
-        row2.addWidget(lbl_dir)
-
-        self.edit_output_dir = QLineEdit(self.output_dir)
-        self.edit_output_dir.setFixedHeight(28)
-        row2.addWidget(self.edit_output_dir, 3)
-
-        btn_browse = QPushButton("浏览")
-        btn_browse.setObjectName("btn_secondary")
-        btn_browse.setFixedSize(56, 28)
-        btn_browse.clicked.connect(self._browse_output_dir)
-        row2.addWidget(btn_browse)
-
-        btn_open = QPushButton("打开目录")
-        btn_open.setObjectName("btn_secondary")
-        btn_open.setFixedSize(76, 28)
-        btn_open.clicked.connect(self._open_output_dir)
-        row2.addWidget(btn_open)
-
-        row2.addWidget(self._vline())
-
-        self.btn_timer = QPushButton("定时巡检")
-        self.btn_timer.setObjectName("btn_secondary")
-        self.btn_timer.setFixedSize(80, 28)
-        self.btn_timer.clicked.connect(self._show_timer_dialog)
-        row2.addWidget(self.btn_timer)
-
-        row2.addStretch()
-
-        outer.addLayout(row2)
-
-        return bar
-
-    def _build_action_bar(self) -> QWidget:
-        """第二行：导入/编辑命令等"""
-        bar = QFrame()
-        bar.setObjectName("actionbar")
-        layout = QHBoxLayout(bar)
-        layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(10)
-
-        btn_import = QPushButton("导入设备清单")
-        btn_import.setObjectName("btn_action")
-        btn_import.clicked.connect(self._import_devices)
-        layout.addWidget(btn_import)
-
-        btn_add = QPushButton("手动添加设备")
-        btn_add.setObjectName("btn_action")
-        btn_add.clicked.connect(self._add_device_manually)
-        layout.addWidget(btn_add)
-
-        btn_del = QPushButton("删除选中")
-        btn_del.setObjectName("btn_action")
-        btn_del.clicked.connect(self._delete_selected)
-        layout.addWidget(btn_del)
-
-        btn_clear = QPushButton("清空列表")
-        btn_clear.setObjectName("btn_action")
-        btn_clear.clicked.connect(self._clear_devices)
-        layout.addWidget(btn_clear)
-
-        btn_template = QPushButton("下载模板")
-        btn_template.setObjectName("btn_action")
-        btn_template.clicked.connect(self._download_template)
-        layout.addWidget(btn_template)
-
-        layout.addWidget(self._vline())
-
-        btn_cmd = QPushButton("编辑巡检命令")
-        btn_cmd.setObjectName("btn_action")
-        btn_cmd.clicked.connect(self._edit_commands)
-        layout.addWidget(btn_cmd)
-
-        layout.addWidget(self._vline())
-
-        # 报表定制按钮
-        self.btn_report_custom = QPushButton("报表定制")
-        self.btn_report_custom.setObjectName("btn_action_highlight")
-        self.btn_report_custom.clicked.connect(self._show_report_custom)
-        layout.addWidget(self.btn_report_custom)
-
-        layout.addWidget(self._vline())
-
-        # AI 配置按钮（带状态指示）
-        self.btn_ai = QPushButton("AI 配置")
-        self.btn_ai.setObjectName("btn_ai_off")
-        self.btn_ai.clicked.connect(self._show_ai_config)
-        layout.addWidget(self.btn_ai)
-
-        layout.addWidget(self._vline())
-
-        # 快照管理按钮
-        self.btn_snapshot = QPushButton("快照管理")
-        self.btn_snapshot.setObjectName("btn_action")
-        self.btn_snapshot.clicked.connect(self._show_snapshot_manager)
-        layout.addWidget(self.btn_snapshot)
-
-        layout.addStretch()
-
-        btn_about = QPushButton("关于")
-        btn_about.setObjectName("btn_action")
-        btn_about.clicked.connect(self._show_about)
-        layout.addWidget(btn_about)
-
-        return bar
-
-    def _build_device_panel(self) -> QWidget:
-        """设备列表面板"""
-        panel = QFrame()
-        panel.setObjectName("device_panel")
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 6, 8, 6)
-        layout.setSpacing(4)
-
-        # 标题行
-        title_row = QHBoxLayout()
-        icon_label = QLabel("设备列表")
-        icon_label.setObjectName("section_title")
-        title_row.addWidget(icon_label)
-        title_row.addStretch()
-        self.lbl_device_count = QLabel("共 0 台设备")
-        self.lbl_device_count.setObjectName("device_count")
-        title_row.addWidget(self.lbl_device_count)
-        layout.addLayout(title_row)
-
-        # 进度条
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        self.progress_bar.setFixedHeight(6)
-        self.progress_bar.setTextVisible(False)
-        layout.addWidget(self.progress_bar)
-
-        # 表格
-        self.table = QTableWidget()
-        self.table.setObjectName("device_table")
-        headers = ['设备名称', '设备类型', 'IP地址', '端口号', '连接类型', '用户名', '密码', '状态']
-        self.table.setColumnCount(len(headers))
-        self.table.setHorizontalHeaderLabels(headers)
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setAlternatingRowColors(True)
-        self.table.setEditTriggers(QAbstractItemView.DoubleClicked)
-        self.table.verticalHeader().setDefaultSectionSize(36)
-        layout.addWidget(self.table)
-
-        return panel
-
-    def _build_log_panel(self) -> QWidget:
-        """日志面板"""
-        panel = QFrame()
-        panel.setObjectName("log_panel")
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 6, 8, 6)
-        layout.setSpacing(4)
-
-        title_row = QHBoxLayout()
-        icon_label = QLabel("执行日志")
-        icon_label.setObjectName("section_title")
-        title_row.addWidget(icon_label)
-        title_row.addStretch()
-
-        btn_clear_log = QPushButton("清空日志")
-        btn_clear_log.setObjectName("btn_tiny")
-        btn_clear_log.clicked.connect(lambda: self.log_view.clear())
-        title_row.addWidget(btn_clear_log)
-        layout.addLayout(title_row)
-
-        self.log_view = QTextEdit()
-        self.log_view.setObjectName("log_view")
-        self.log_view.setReadOnly(True)
-        self.log_view.setFont(QFont("Consolas", 9))
-        layout.addWidget(self.log_view)
-
-        return panel
-
-    def _build_status_bar(self):
-        """底部状态栏"""
-        sb = self.statusBar()
-        sb.setObjectName("status_bar")
-
-        self.lbl_status_completed = QLabel("已完成: 0/0")
-        self.lbl_status_success = QLabel("成功: 0")
-        self.lbl_status_failed = QLabel("失败: 0")
-
-        sb.addWidget(self.lbl_status_completed)
-        sb.addWidget(QLabel("  |  "))
-        sb.addWidget(self.lbl_status_success)
-        sb.addWidget(QLabel("  |  "))
-        sb.addWidget(self.lbl_status_failed)
-        sb.addPermanentWidget(QLabel("关于"))
-
-        self._reset_status()
-
-    # ═══════════════════════════════════════════════════════════════════
-    #  信号连接
-    # ═══════════════════════════════════════════════════════════════════
     def _connect_signals(self):
         self.signals.log_signal.connect(self._on_log)
         self.signals.progress_signal.connect(self._on_progress)
@@ -445,101 +910,61 @@ class MainWindow(QMainWindow):
             task.device.host, task.status)
         self.engine.on_all_done = lambda s, f: self.signals.all_done_signal.emit(s, f)
 
-    # ═══════════════════════════════════════════════════════════════════
-    #  槽函数
-    # ═══════════════════════════════════════════════════════════════════
     def _on_log(self, level: str, msg: str):
         color_map = {
-            'INFO': COLOR_LOG_INFO,
-            'DEBUG': COLOR_LOG_DEBUG,
-            'ERROR': COLOR_LOG_ERROR,
-            'WARNING': COLOR_LOG_WARN,
-            'WARN': COLOR_LOG_WARN,
+            'INFO': '#10B981',
+            'DEBUG': '#60A5FA',
+            'ERROR': '#F87171',
+            'WARNING': '#FBBF24',
+            'WARN': '#FBBF24',
         }
-        color = color_map.get(level.upper(), COLOR_LOG_INFO)
+        color = color_map.get(level.upper(), '#10B981')
         ts = datetime.now().strftime('%H:%M:%S')
-        html = (f'<span style="color:#888">[{ts}]</span> '
-                f'<span style="color:{color};font-weight:bold">[{level}]</span> '
-                f'<span style="color:#DDD">{msg}</span>')
-        self.log_view.append(html)
-        # 自动滚动到底部
-        cursor = self.log_view.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        self.log_view.setTextCursor(cursor)
+        html = f'<span style="color:#64748B;">[{ts}]</span> <span style="color:{color};font-weight:bold;">[{level}]</span> <span style="color:#E2E8F0;">{msg}</span>'
+        self.page_inspection.log_view.append(html)
 
     def _on_progress(self, completed: int, total: int):
-        self.progress_bar.setMaximum(total)
-        self.progress_bar.setValue(completed)
-        self.lbl_status_completed.setText(f"已完成: {completed}/{total}")
+        self.page_inspection.progress_bar.setMaximum(total)
+        self.page_inspection.progress_bar.setValue(completed)
+        self.status_bar.set_progress(f"进度: {completed}/{total}")
 
     def _on_task_done(self, host: str, status: str):
-        # 更新表格中的状态列
-        for row in range(self.table.rowCount()):
-            item_ip = self.table.item(row, 2)
+        table = self.page_devices.table
+        for row in range(table.rowCount()):
+            item_ip = table.item(row, 2)
             if item_ip and item_ip.text() == host:
                 status_item = QTableWidgetItem()
                 if status == 'success':
                     status_item.setText('成功')
-                    status_item.setForeground(QColor(COLOR_SUCCESS))
+                    status_item.setForeground(QColor(COLORS['success']))
                 elif status == 'failed':
                     status_item.setText('失败')
-                    status_item.setForeground(QColor(COLOR_DANGER))
+                    status_item.setForeground(QColor(COLORS['danger']))
                 else:
                     status_item.setText('取消')
-                    status_item.setForeground(QColor(COLOR_WARNING))
+                    status_item.setForeground(QColor(COLORS['warning']))
                 status_item.setTextAlignment(Qt.AlignCenter)
-                self.table.setItem(row, 7, status_item)
+                table.setItem(row, 7, status_item)
                 break
-
-        # 更新底部统计
-        success = sum(1 for row in range(self.table.rowCount())
-                      if self.table.item(row, 7) and '成功' in (self.table.item(row, 7).text() or ''))
-        failed = sum(1 for row in range(self.table.rowCount())
-                     if self.table.item(row, 7) and '失败' in (self.table.item(row, 7).text() or ''))
-        self.lbl_status_success.setText(f"成功: {success}")
-        self.lbl_status_failed.setText(f"失败: {failed}")
 
     def _on_all_done(self, success: int, failed: int):
         self.is_running = False
-        self.btn_start.setEnabled(True)
-        self.btn_stop.setEnabled(False)
-        self.progress_bar.setVisible(False)
-        self.lbl_status_success.setText(f"成功: {success}")
-        self.lbl_status_failed.setText(f"失败: {failed}")
-        self._append_log('INFO', f'巡检任务已完成 — 成功 {success} 台，失败 {failed} 台')
-
-        # AI 分析
-        if self.ai_config.get('enabled') and self.ai_config.get('apikey'):
-            self._append_log('INFO', '正在调用 AI 分析巡检报告，请稍候...')
-            self._run_ai_analysis()
-
-        # 保存巡检结果用于快照
-        self._last_inspection_results = getattr(self.engine, 'completed_tasks', [])
+        self.page_inspection.btn_start.setEnabled(True)
+        self.page_inspection.btn_stop.setEnabled(False)
+        self.page_inspection.progress_bar.setVisible(False)
+        self.status_bar.set_progress("")
+        self._append_log('INFO', f'巡检完成 - 成功: {success}, 失败: {failed}')
 
         msg = QMessageBox(self)
         msg.setWindowTitle("巡检完成")
-        msg.setText(f"巡检任务已全部完成！\n\n成功: {success} 台\n失败: {failed} 台")
+        msg.setText(f"巡检任务已完成！\n\n成功: {success} 台\n失败: {failed} 台")
         msg.setIcon(QMessageBox.Information)
-        open_btn = msg.addButton("打开结果目录", QMessageBox.ActionRole)
-        snapshot_btn = msg.addButton("保存快照", QMessageBox.ActionRole)
         msg.addButton("确定", QMessageBox.AcceptRole)
         msg.exec_()
-        if msg.clickedButton() == open_btn:
-            self._open_output_dir()
-        elif msg.clickedButton() == snapshot_btn:
-            self._save_inspection_snapshot()
 
     def _append_log(self, level: str, msg: str):
         self.signals.log_signal.emit(level, msg)
 
-    def _reset_status(self):
-        self.lbl_status_completed.setText("已完成: 0/0")
-        self.lbl_status_success.setText("成功: 0")
-        self.lbl_status_failed.setText("失败: 0")
-
-    # ═══════════════════════════════════════════════════════════════════
-    #  设备管理
-    # ═══════════════════════════════════════════════════════════════════
     def _import_devices(self):
         path, _ = QFileDialog.getOpenFileName(
             self, "选择设备清单文件", "",
@@ -550,44 +975,41 @@ class MainWindow(QMainWindow):
         try:
             devices = parse_excel(path)
             if not devices:
-                QMessageBox.warning(self, "提示", "未能从文件中解析到任何设备信息，请检查文件格式。")
+                QMessageBox.warning(self, "提示", "未能从文件中解析到任何设备信息")
                 return
             self._load_devices_to_table(devices)
-            self._append_log('INFO', f"成功导入 {len(devices)} 台设备，来自: {os.path.basename(path)}")
+            self._append_log('INFO', f"成功导入 {len(devices)} 台设备")
+            self._update_dashboard()
         except Exception as e:
-            QMessageBox.critical(self, "导入失败", f"文件解析错误：\n{str(e)}")
-            self._append_log('ERROR', f"导入设备清单失败: {e}")
+            QMessageBox.critical(self, "导入失败", str(e))
 
     def _load_devices_to_table(self, devices: list, append: bool = False):
+        table = self.page_devices.table
         if not append:
-            self.table.setRowCount(0)
-            self.devices = []
+            table.setRowCount(0)
 
         for d in devices:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
+            row = table.rowCount()
+            table.insertRow(row)
             self.devices.append(d)
 
-            self.table.setItem(row, 0, QTableWidgetItem(d.get('name', '')))
-            self.table.setItem(row, 1, QTableWidgetItem(d.get('platform', '')))
-            self.table.setItem(row, 2, QTableWidgetItem(d.get('host', '')))
+            table.setItem(row, 0, QTableWidgetItem(d.get('name', '')))
+            table.setItem(row, 1, QTableWidgetItem(d.get('platform', '')))
+            table.setItem(row, 2, QTableWidgetItem(d.get('host', '')))
             port_item = QTableWidgetItem(str(d.get('port', '')))
             port_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(row, 3, port_item)
+            table.setItem(row, 3, port_item)
             proto_item = QTableWidgetItem(d.get('protocol', 'ssh'))
             proto_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(row, 4, proto_item)
-            self.table.setItem(row, 5, QTableWidgetItem(d.get('username', '')))
-            # 密码显示为星号
+            table.setItem(row, 4, proto_item)
+            table.setItem(row, 5, QTableWidgetItem(d.get('username', '')))
             pwd_item = QTableWidgetItem('*' * min(len(d.get('password', '')), 10) or '未设置')
             pwd_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(row, 6, pwd_item)
+            table.setItem(row, 6, pwd_item)
             status_item = QTableWidgetItem('待巡检')
             status_item.setTextAlignment(Qt.AlignCenter)
-            status_item.setForeground(QColor('#888'))
-            self.table.setItem(row, 7, status_item)
-
-        self.lbl_device_count.setText(f"共 {self.table.rowCount()} 台设备")
+            status_item.setForeground(QColor(COLORS['text_secondary']))
+            table.setItem(row, 7, status_item)
 
     def _add_device_manually(self):
         dlg = AddDeviceDialog(self)
@@ -595,73 +1017,48 @@ class MainWindow(QMainWindow):
             d = dlg.get_device()
             if d:
                 self._load_devices_to_table([d], append=True)
-                self._append_log('INFO', f"已手动添加设备: {d['name']} ({d['host']})")
+                self._append_log('INFO', f"已添加设备: {d['name']}")
 
     def _delete_selected(self):
-        rows = sorted(set(i.row() for i in self.table.selectedItems()), reverse=True)
+        table = self.page_devices.table
+        rows = sorted(set(i.row() for i in table.selectedItems()), reverse=True)
         if not rows:
             return
         for row in rows:
-            self.table.removeRow(row)
+            table.removeRow(row)
             if row < len(self.devices):
                 self.devices.pop(row)
-        self.lbl_device_count.setText(f"共 {self.table.rowCount()} 台设备")
+        self._update_dashboard()
 
     def _clear_devices(self):
-        if QMessageBox.question(self, "确认", "确定要清空设备列表吗？",
-                                QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
-            self.table.setRowCount(0)
+        if QMessageBox.question(self, "确认", "确定要清空设备列表吗？") == QMessageBox.Yes:
+            self.page_devices.table.setRowCount(0)
             self.devices.clear()
-            self.lbl_device_count.setText("共 0 台设备")
+            self._update_dashboard()
 
-    def _download_template(self):
-        path, _ = QFileDialog.getSaveFileName(
-            self, "保存模板文件", "设备清单模板.xlsx",
-            "Excel文件 (*.xlsx)"
-        )
-        if not path:
-            return
-        try:
-            generate_template(path)
-            QMessageBox.information(self, "成功", f"模板已保存至:\n{path}")
-        except Exception as e:
-            QMessageBox.critical(self, "失败", f"模板生成失败:\n{e}")
-
-    # ═══════════════════════════════════════════════════════════════════
-    #  巡检控制
-    # ═══════════════════════════════════════════════════════════════════
     def _start_inspection(self):
-        if self.table.rowCount() == 0:
-            QMessageBox.warning(self, "提示", "请先导入或添加设备清单！")
+        if self.page_devices.table.rowCount() == 0:
+            QMessageBox.warning(self, "提示", "请先导入或添加设备！")
             return
 
-        output_dir = self.edit_output_dir.text().strip() or self.output_dir
-        fmt = self.combo_format.currentText().lower()
-        max_workers = self.spin_threads.value()
-
-        # 重置状态列
-        for row in range(self.table.rowCount()):
+        table = self.page_devices.table
+        for row in range(table.rowCount()):
             item = QTableWidgetItem('巡检中...')
             item.setTextAlignment(Qt.AlignCenter)
-            item.setForeground(QColor(COLOR_WARNING))
-            self.table.setItem(row, 7, item)
+            item.setForeground(QColor(COLORS['warning']))
+            table.setItem(row, 7, item)
 
-        self._reset_status()
-        self.progress_bar.setValue(0)
-        self.progress_bar.setMaximum(self.table.rowCount())
-        self.progress_bar.setVisible(True)
-        self.btn_start.setEnabled(False)
-        self.btn_stop.setEnabled(True)
+        self.page_inspection.progress_bar.setValue(0)
+        self.page_inspection.progress_bar.setVisible(True)
+        self.page_inspection.btn_start.setEnabled(False)
+        self.page_inspection.btn_stop.setEnabled(True)
         self.is_running = True
 
-        # 构建设备列表
         device_list = []
-        for row in range(self.table.rowCount()):
+        for row in range(table.rowCount()):
             def cell(c):
-                item = self.table.item(row, c)
+                item = table.item(row, c)
                 return item.text() if item else ''
-
-            # 密码从原始数据中取
             raw = self.devices[row] if row < len(self.devices) else {}
             dev = DeviceInfo(
                 name=cell(0),
@@ -675,10 +1072,13 @@ class MainWindow(QMainWindow):
             )
             device_list.append(dev)
 
-        self._append_log('INFO', f'开始巡检 {len(device_list)} 台设备，线程数: {max_workers}，格式: {fmt.upper()}')
+        project_name = self.page_inspection.edit_project.text().strip() or '未命名项目'
+        output_dir = self.page_inspection.edit_output_dir.text().strip() or self.output_dir
+        fmt = self.page_inspection.combo_format.currentText().lower()
+        max_workers = self.page_inspection.spin_threads.value()
 
-        # 把项目名称和 AI 配置传给引擎
-        project_name = self.edit_project.text().strip() or '未命名项目'
+        self._append_log('INFO', f'开始巡检 {len(device_list)} 台设备')
+
         self.engine.start(
             devices=device_list,
             commands_map=self.commands_map,
@@ -686,468 +1086,22 @@ class MainWindow(QMainWindow):
             output_format=fmt,
             max_workers=max_workers,
             project_name=project_name,
-            report_config=self.report_config,
+            report_config={},
         )
 
     def _stop_inspection(self):
         self.engine.stop()
-        self.btn_stop.setEnabled(False)
-        self.btn_start.setEnabled(True)
+        self.page_inspection.btn_stop.setEnabled(False)
+        self.page_inspection.btn_start.setEnabled(True)
         self.is_running = False
-        self.progress_bar.setVisible(False)
-        self._append_log('WARNING', '用户已手动停止巡检')
+        self.page_inspection.progress_bar.setVisible(False)
+        self._append_log('WARNING', '用户已停止巡检')
 
-    # ═══════════════════════════════════════════════════════════════════
-    #  其他功能
-    # ═══════════════════════════════════════════════════════════════════
-    def _browse_output_dir(self):
-        path = QFileDialog.getExistingDirectory(self, "选择保存目录", self.output_dir)
-        if path:
-            self.edit_output_dir.setText(path)
-            self.output_dir = path
-
-    def _open_output_dir(self):
-        path = self.edit_output_dir.text().strip() or self.output_dir
-        os.makedirs(path, exist_ok=True)
-        if sys.platform == 'win32':
-            os.startfile(path)
-        elif sys.platform == 'darwin':
-            subprocess.call(['open', path])
+    def _save_timer_settings(self):
+        enabled = self.page_schedule.chk_timer.isChecked()
+        time_text = self.page_schedule.time_edit.currentText()
+        if enabled:
+            self._append_log('INFO', f'定时巡检已开启 - 每天 {time_text}')
         else:
-            subprocess.call(['xdg-open', path])
-
-    def _edit_commands(self):
-        dlg = CommandEditorDialog(self.commands_file, self)
-        if dlg.exec_():
-            self._parse_commands_file(self.commands_file)
-            self._append_log('INFO', f'成功加载命令配置，包含 {len(self.commands_map)} 种设备类型的命令...')
-
-    def _show_timer_dialog(self):
-        dlg = TimerDialog(self)
-        if dlg.exec_():
-            settings = dlg.get_settings()
-            self.timer_active = settings.get('enabled', False)
-            self.timer_mode = settings.get('mode', 'daily')
-            self.timer_hour = settings.get('hour', 22)
-            self.timer_min = settings.get('minute', 0)
-            self.timer_weekdays = settings.get('weekdays', [])
-
-            if self.timer_active:
-                mode_text = {'daily': '每日', 'weekly': '每周', 'once': '单次'}.get(self.timer_mode, '每日')
-                self._append_log('INFO', f'定时巡检已开启 - {mode_text} {self.timer_hour:02d}:{self.timer_min:02d} 执行')
-            else:
-                self._append_log('INFO', '定时巡检已关闭')
-
-    def _show_about(self):
-        dlg = AboutDialog(self)
-        dlg.exec_()
-
-    def _show_report_custom(self):
-        dlg = ReportCustomDialog(self.report_config, self)
-        if dlg.exec_():
-            self.report_config = dlg.get_config()
-            self._append_log('INFO', '报表定制配置已更新，下次巡检将使用新样式')
-
-    def _show_ai_config(self):
-        dlg = AiConfigDialog(self.ai_config, self)
-        if dlg.exec_():
-            self.ai_config = dlg.get_config()
-            # 更新按钮样式
-            if self.ai_config.get('enabled'):
-                self.btn_ai.setObjectName("btn_ai_on")
-                self.btn_ai.setText("AI 已开启")
-                self._append_log('INFO', f"AI 分析已启用：{self.ai_config.get('model','')}")
-            else:
-                self.btn_ai.setObjectName("btn_ai_off")
-                self.btn_ai.setText("AI 配置")
-            # 刷新样式
-            self.btn_ai.style().unpolish(self.btn_ai)
-            self.btn_ai.style().polish(self.btn_ai)
-
-    def _show_snapshot_manager(self):
-        """显示快照管理对话框"""
-        dlg = SnapshotManagerDialog(self.snapshot_manager, self)
-        dlg.exec_()
-
-    def _save_inspection_snapshot(self):
-        """保存本次巡检结果为快照"""
-        tasks = getattr(self.engine, 'completed_tasks', [])
-        if not tasks:
-            QMessageBox.information(self, "提示", "没有可保存的巡检结果")
-            return
-
-        saved_count = 0
-        for task in tasks:
-            if task.status == 'success' and task.results:
-                try:
-                    self.snapshot_manager.create_snapshot(
-                        device_name=task.device.name,
-                        device_host=task.device.host,
-                        commands_output=task.results,
-                        description=f"巡检快照 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-                    )
-                    saved_count += 1
-                except Exception as e:
-                    self._append_log('ERROR', f"保存快照失败 {task.device.host}: {e}")
-
-        if saved_count > 0:
-            QMessageBox.information(self, "成功", f"已保存 {saved_count} 个设备的配置快照")
-            self._append_log('INFO', f"已保存 {saved_count} 个设备的配置快照")
-        else:
-            QMessageBox.information(self, "提示", "没有成功保存任何快照")
-
-    def _run_ai_analysis(self):
-        """调用 AI 分析所有已生成的报告（整合后统一分析）"""
-        import threading
-        import time
-        output_dir = self.edit_output_dir.text().strip() or self.output_dir
-        project_name = self.edit_project.text().strip() or '未命名项目'
-
-        def worker():
-            try:
-                from utils.ai_analyzer import AiAnalyzer
-                analyzer = AiAnalyzer(self.ai_config)
-
-                # 找到本次生成的报告文件（最近10分钟内）
-                now = time.time()
-                report_files = []
-                if os.path.isdir(output_dir):
-                    for fn in os.listdir(output_dir):
-                        fp = os.path.join(output_dir, fn)
-                        # 只收集单个设备报告，不收集已整合的报告
-                        if os.path.isfile(fp) and (now - os.path.getmtime(fp)) < 600 \
-                           and not fn.startswith('汇总_') and not fn.startswith('整合_') \
-                           and not fn.startswith('merged_'):
-                            # 只处理 HTML 和 TXT 报告
-                            if fn.lower().endswith(('.html', '.txt')):
-                                report_files.append(fp)
-
-                if not report_files:
-                    self.signals.log_signal.emit('WARNING', 'AI 分析：未找到最近生成的报告文件')
-                    return
-
-                self.signals.log_signal.emit('INFO', f'AI 分析：正在整合 {len(report_files)} 个设备报告...')
-
-                # 生成整合报告文件路径
-                timestamp = time.strftime('%Y%m%d_%H%M%S')
-                merge_filename = f'整合巡检报告_{timestamp}.html'
-                merge_path = os.path.join(output_dir, merge_filename)
-
-                # 整合所有报告
-                merge_file = analyzer.merge_reports(report_files, merge_path, project_name)
-                if not merge_file:
-                    self.signals.log_signal.emit('ERROR', 'AI 分析：整合报告失败')
-                    return
-
-                self.signals.log_signal.emit('INFO', f'AI 分析：整合报告已生成，正在调用 AI 分析...')
-
-                # 调用 AI 分析整合后的报告
-                result = analyzer.analyze_report(merge_file, project_name)
-                if result:
-                    # 将 AI 结果写入整合报告
-                    analyzer.append_ai_section(merge_file, result)
-                    self.signals.log_signal.emit('INFO', f'AI 分析完成！结果已写入: {os.path.basename(merge_file)}')
-
-                    # 同时也将 AI 结果写入各单个设备报告
-                    for fp in report_files:
-                        analyzer.append_ai_section(fp, result)
-                    self.signals.log_signal.emit('INFO', f'AI 分析结果已同步到所有 {len(report_files)} 个设备报告')
-                else:
-                    self.signals.log_signal.emit('ERROR', 'AI 分析调用失败，请检查 API 配置')
-
-            except Exception as e:
-                import traceback
-                self.signals.log_signal.emit('ERROR', f'AI 分析失败: {e}')
-                traceback.print_exc()
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _vline(self) -> QFrame:
-        line = QFrame()
-        line.setFrameShape(QFrame.VLine)
-        line.setFrameShadow(QFrame.Sunken)
-        line.setFixedWidth(2)
-        return line
-
-    # ═══════════════════════════════════════════════════════════════════
-    #  样式
-    # ═══════════════════════════════════════════════════════════════════
-    def _apply_style(self):
-        self.setStyleSheet(f"""
-            /* ============================================================
-               NetInspector - 工业实用主义风格样式表
-               ============================================================ */
-            
-            QMainWindow {{
-                background: {COLOR_BG};
-            }}
-            QWidget {{
-                font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-                font-size: 13px;
-                color: {COLOR_TEXT_PRIMARY};
-            }}
-            
-            /* 顶部工具栏 */
-            QFrame#toolbar {{
-                background: {COLOR_HEADER};
-                border-radius: 8px;
-            }}
-            QFrame#toolbar QLabel {{
-                color: #CBD5E1;
-                font-size: 12px;
-            }}
-            QFrame#toolbar QLineEdit {{
-                background: rgba(255,255,255,0.1);
-                color: #F1F5F9;
-                border: 1px solid rgba(255,255,255,0.15);
-                border-radius: 4px;
-                padding: 4px 10px;
-                selection-background-color: {COLOR_ACCENT};
-            }}
-            QFrame#toolbar QLineEdit:focus {{
-                border: 1px solid {COLOR_ACCENT};
-            }}
-            
-            /* 操作按钮栏 */
-            QFrame#actionbar {{
-                background: {COLOR_CARD};
-                border-radius: 8px;
-                border: 1px solid {COLOR_BORDER};
-            }}
-            
-            /* 设备面板和日志面板 - 卡片式设计 */
-            QFrame#device_panel, QFrame#log_panel {{
-                background: {COLOR_CARD};
-                border-radius: 10px;
-                border: 1px solid {COLOR_BORDER};
-            }}
-            
-            QLabel#section_title {{
-                font-size: 13px;
-                font-weight: 600;
-                color: {COLOR_HEADER};
-                padding: 4px 0;
-            }}
-            QLabel#device_count {{
-                color: {COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-            }}
-            
-            /* 表格样式 - 清晰专业 */
-            QTableWidget#device_table {{
-                border: none;
-                gridline-color: {COLOR_BORDER};
-                selection-background-color: {COLOR_ACCENT};
-                alternate-background-color: #F8FAFC;
-                background: white;
-                font-size: 13px;
-            }}
-            QTableWidget#device_table QHeaderView::section {{
-                background: {COLOR_HEADER};
-                color: white;
-                padding: 8px 10px;
-                font-weight: 600;
-                font-size: 12px;
-                border: none;
-                border-right: 1px solid rgba(255,255,255,0.1);
-            }}
-            QTableWidget#device_table::item {{
-                padding: 6px 10px;
-                border-bottom: 1px solid {COLOR_BORDER};
-                color: {COLOR_TEXT_PRIMARY};
-            }}
-            QTableWidget#device_table::item:selected {{
-                background: {COLOR_ACCENT};
-                color: white;
-            }}
-            
-            /* 日志视图 - 深色主题 */
-            QTextEdit#log_view {{
-                background: {COLOR_LOG_BG};
-                color: {COLOR_LOG_INFO};
-                border: none;
-                border-radius: 6px;
-                padding: 8px;
-                font-family: "JetBrains Mono", "Consolas", monospace;
-                font-size: 12px;
-                line-height: 1.5;
-            }}
-            
-            /* 主要按钮 - 开始巡检 */
-            QPushButton#btn_start {{
-                background: {COLOR_SUCCESS};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 13px;
-            }}
-            QPushButton#btn_start:hover {{
-                background: #047857;
-            }}
-            QPushButton#btn_start:disabled {{
-                background: #9CA3AF;
-            }}
-            
-            /* 次要按钮 - 停止巡检 */
-            QPushButton#btn_stop {{
-                background: {COLOR_DANGER};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 13px;
-            }}
-            QPushButton#btn_stop:hover {{
-                background: #B91C1C;
-            }}
-            QPushButton#btn_stop:disabled {{
-                background: #9CA3AF;
-            }}
-            
-            /* 工具栏次要按钮 */
-            QPushButton#btn_secondary {{
-                background: rgba(255,255,255,0.1);
-                color: #E2E8F0;
-                border: 1px solid rgba(255,255,255,0.15);
-                border-radius: 4px;
-                padding: 4px 10px;
-            }}
-            QPushButton#btn_secondary:hover {{
-                background: rgba(255,255,255,0.2);
-                color: white;
-            }}
-            
-            /* 操作按钮 */
-            QPushButton#btn_action {{
-                background: {COLOR_CARD};
-                color: {COLOR_TEXT_PRIMARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 5px;
-                padding: 6px 14px;
-                font-size: 12px;
-            }}
-            QPushButton#btn_action:hover {{
-                background: #EFF6FF;
-                border-color: {COLOR_ACCENT};
-                color: {COLOR_ACCENT};
-            }}
-            
-            /* 高亮操作按钮 */
-            QPushButton#btn_action_highlight {{
-                background: #EFF6FF;
-                color: {COLOR_ACCENT};
-                border: 1px solid #BFDBFE;
-                border-radius: 5px;
-                padding: 6px 14px;
-                font-size: 12px;
-                font-weight: 600;
-            }}
-            QPushButton#btn_action_highlight:hover {{
-                background: #DBEAFE;
-                border-color: {COLOR_ACCENT};
-            }}
-            
-            /* 小按钮 */
-            QPushButton#btn_tiny {{
-                background: transparent;
-                color: {COLOR_TEXT_SECONDARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 3px;
-                padding: 2px 8px;
-                font-size: 11px;
-            }}
-            QPushButton#btn_tiny:hover {{
-                color: {COLOR_ACCENT};
-                border-color: {COLOR_ACCENT};
-            }}
-            
-            /* AI 配置按钮 - 关闭状态 */
-            QPushButton#btn_ai_off {{
-                background: {COLOR_CARD};
-                color: {COLOR_TEXT_SECONDARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 5px;
-                padding: 6px 14px;
-                font-size: 12px;
-            }}
-            QPushButton#btn_ai_off:hover {{
-                background: #FFFBEB;
-                border-color: {COLOR_WARNING};
-                color: {COLOR_WARNING};
-            }}
-            
-            /* AI 配置按钮 - 开启状态 */
-            QPushButton#btn_ai_on {{
-                background: {COLOR_ACCENT};
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 6px 14px;
-                font-size: 12px;
-                font-weight: 600;
-            }}
-            QPushButton#btn_ai_on:hover {{
-                background: #1D4ED8;
-            }}
-            
-            /* 数字输入框 */
-            QSpinBox {{
-                background: rgba(255,255,255,0.1);
-                color: #F1F5F9;
-                border: 1px solid rgba(255,255,255,0.15);
-                border-radius: 4px;
-                padding: 3px 6px;
-            }}
-            QSpinBox::up-button, QSpinBox::down-button {{
-                background: rgba(255,255,255,0.1);
-                border: none;
-            }}
-            
-            /* 下拉框 */
-            QComboBox {{
-                background: rgba(255,255,255,0.1);
-                color: #F1F5F9;
-                border: 1px solid rgba(255,255,255,0.15);
-                border-radius: 4px;
-                padding: 3px 10px;
-            }}
-            QComboBox::drop-down {{
-                border: none;
-            }}
-            QComboBox QAbstractItemView {{
-                background: {COLOR_HEADER};
-                color: white;
-                selection-background-color: {COLOR_ACCENT};
-                border: 1px solid rgba(255,255,255,0.1);
-            }}
-            
-            /* 进度条 */
-            QProgressBar {{
-                border: none;
-                border-radius: 3px;
-                background: #E2E8F0;
-                height: 6px;
-            }}
-            QProgressBar::chunk {{
-                background: {COLOR_ACCENT};
-                border-radius: 3px;
-            }}
-            
-            /* 状态栏 */
-            QStatusBar {{
-                background: #F8FAFC;
-                border-top: 1px solid {COLOR_BORDER};
-                font-size: 12px;
-                color: {COLOR_TEXT_SECONDARY};
-            }}
-            
-            /* 分隔器 */
-            QSplitter::handle {{
-                background: {COLOR_BORDER};
-                height: 3px;
-            }}
-            QSplitter::handle:hover {{
-                background: {COLOR_ACCENT};
-            }}
-        """)
+            self._append_log('INFO', '定时巡检已关闭')
+        QMessageBox.information(self, "保存成功", "定时设置已保存")
