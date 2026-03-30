@@ -42,22 +42,22 @@ class InspectionSignals(QThread):
 
 
 # ─── 颜色常量 ─────────────────────────────────────────────────────────
-# 工业/实用主义配色方案 - 专业工具风格
-COLOR_BG = "#F5F7FA"                    # 主背景 - 浅灰蓝
-COLOR_CARD = "#FFFFFF"                  # 卡片背景
-COLOR_HEADER = "#1A365D"                # 深海蓝 - 主色调
-COLOR_ACCENT = "#2563EB"                # 科技蓝 - 强调色
-COLOR_SUCCESS = "#059669"               # 深绿 - 成功
-COLOR_DANGER = "#DC2626"                # 红 - 危险/错误
-COLOR_WARNING = "#D97706"               # 琥珀 - 警告
-COLOR_TEXT_PRIMARY = "#1F2937"          # 主要文字
-COLOR_TEXT_SECONDARY = "#6B7280"        # 次要文字
-COLOR_BORDER = "#E5E7EB"                # 边框
-COLOR_LOG_BG = "#0F172A"                # 日志背景 - 深蓝黑
-COLOR_LOG_INFO = "#34D399"              # 日志信息 - 翠绿
-COLOR_LOG_DEBUG = "#60A5FA"             # 日志调试 - 浅蓝
-COLOR_LOG_ERROR = "#F87171"             # 日志错误 - 浅红
-COLOR_LOG_WARN = "#FBBF24"              # 日志警告 - 金黄
+# 深色专业主题配色方案 - 符合UI设计规范 v1.0.1
+COLOR_BG = "#F0F2F5"                    # 主背景 - 浅灰蓝（规范要求）
+COLOR_CARD = "#FFFFFF"                  # 卡片背景 - 纯白
+COLOR_HEADER = "#2C3E50"                # 顶部栏 - 深蓝灰（规范要求）
+COLOR_ACCENT = "#3498DB"                # 强调色 - 蓝色（规范要求）
+COLOR_SUCCESS = "#27AE60"               # 成功色 - 绿色（规范要求）
+COLOR_DANGER = "#E74C3C"                # 危险色 - 红色（规范要求）
+COLOR_WARNING = "#F39C12"               # 警告色 - 橙色（规范要求）
+COLOR_TEXT_PRIMARY = "#2C3E50"          # 主要文字 - 深蓝灰
+COLOR_TEXT_SECONDARY = "#7F8C8D"        # 次要文字 - 灰蓝
+COLOR_BORDER = "#BDC3C7"                # 边框 - 浅灰蓝
+COLOR_LOG_BG = "#2C3E50"                # 日志背景 - 深蓝灰
+COLOR_LOG_INFO = "#ECF0F1"              # 日志信息 - 浅灰
+COLOR_LOG_DEBUG = "#3498DB"             # 日志调试 - 蓝色
+COLOR_LOG_ERROR = "#E74C3C"             # 日志错误 - 红色
+COLOR_LOG_WARN = "#F39C12"              # 日志警告 - 橙色
 
 
 class MainWindow(QMainWindow):
@@ -875,51 +875,128 @@ class MainWindow(QMainWindow):
     def _apply_style(self):
         self.setStyleSheet(f"""
             /* ============================================================
-               NetInspector - 工业实用主义风格样式表
+               NetInspector - 深色专业主题样式表 (v1.0.1)
+               符合UI设计规范：F0F2F5主背景，2C3E50顶部栏，3498DB强调色
                ============================================================ */
             
             QMainWindow {{
                 background: {COLOR_BG};
+                background-image: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #F8FAFC, stop: 1 #F0F2F5
+                );
+                border-top: 1px solid #E0E6ED;
             }}
             QWidget {{
                 font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
                 font-size: 13px;
                 color: {COLOR_TEXT_PRIMARY};
+                outline: none;
             }}
             
-            /* 顶部工具栏 */
+            /* 全局滚动条美化 */
+            QScrollBar:vertical {{
+                background: #E8ECF1;
+                border-radius: 4px;
+                width: 10px;
+                margin: 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: #A0AEC0;
+                border-radius: 4px;
+                min-height: 20px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: #718096;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0;
+                border: none;
+                background: none;
+            }}
+            
+            /* 顶部工具栏 - 现代化设计 */
             QFrame#toolbar {{
-                background: {COLOR_HEADER};
-                border-radius: 8px;
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #2C3E50, stop: 1 #1A252F
+                );
+                border-bottom: 1px solid rgba(0,0,0,0.2);
+                border-radius: 0;
+                padding: 8px 12px;
             }}
             QFrame#toolbar QLabel {{
-                color: #CBD5E1;
-                font-size: 12px;
+                color: #ECF0F1;
+                font-size: 13px;
+                font-weight: 500;
+            }}
+            QFrame#toolbar QComboBox {{
+                background: rgba(255,255,255,0.15);
+                color: #ECF0F1;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 4px;
+                padding: 4px 8px;
+                min-height: 24px;
+            }}
+            QFrame#toolbar QComboBox::drop-down {{
+                border: none;
+                width: 18px;
+            }}
+            QFrame#toolbar QComboBox::down-arrow {{
+                image: url(down_arrow.png);
+                width: 12px;
+                height: 12px;
+            }}
+            QFrame#toolbar QSpinBox {{
+                background: rgba(255,255,255,0.15);
+                color: #ECF0F1;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 4px;
+                padding: 4px 8px;
             }}
             QFrame#toolbar QLineEdit {{
-                background: rgba(255,255,255,0.1);
-                color: #F1F5F9;
-                border: 1px solid rgba(255,255,255,0.15);
+                background: rgba(255,255,255,0.15);
+                color: #ECF0F1;
+                border: 1px solid rgba(255,255,255,0.2);
                 border-radius: 4px;
                 padding: 4px 10px;
                 selection-background-color: {COLOR_ACCENT};
+                font-size: 12px;
             }}
             QFrame#toolbar QLineEdit:focus {{
                 border: 1px solid {COLOR_ACCENT};
+                background: rgba(52, 152, 219, 0.2);
             }}
             
-            /* 操作按钮栏 */
+            /* 操作按钮栏 - 现代卡片式设计 */
             QFrame#actionbar {{
                 background: {COLOR_CARD};
                 border-radius: 8px;
                 border: 1px solid {COLOR_BORDER};
+                box-shadow: 0 2px 6px rgba(44, 62, 80, 0.08);
+                margin: 8px 0;
             }}
             
-            /* 设备面板和日志面板 - 卡片式设计 */
+            /* 设备面板和日志面板 - 现代化卡片设计 */
             QFrame#device_panel, QFrame#log_panel {{
                 background: {COLOR_CARD};
                 border-radius: 10px;
                 border: 1px solid {COLOR_BORDER};
+                box-shadow: 0 2px 8px rgba(44, 62, 80, 0.06);
+            }}
+            
+            QFrame#device_panel::title, QFrame#log_panel::title {{
+                subcontrol-origin: margin;
+                padding: 8px 12px;
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #F8FAFC, stop: 1 #F0F2F5
+                );
+                border-bottom: 1px solid {COLOR_BORDER};
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+                font-weight: 600;
+                color: {COLOR_HEADER};
             }}
             
             QLabel#section_title {{
@@ -933,76 +1010,147 @@ class MainWindow(QMainWindow):
                 font-size: 12px;
             }}
             
-            /* 表格样式 - 清晰专业 */
+            /* 表格样式 - 现代化设计 */
             QTableWidget#device_table {{
                 border: none;
                 gridline-color: {COLOR_BORDER};
-                selection-background-color: {COLOR_ACCENT};
+                selection-background-color: rgba(52, 152, 219, 0.2);
                 alternate-background-color: #F8FAFC;
                 background: white;
-                font-size: 13px;
+                font-size: 12px;
+                border-radius: 6px;
+            }}
+            QTableWidget#device_table QHeaderView {{
+                background: transparent;
+                border: none;
             }}
             QTableWidget#device_table QHeaderView::section {{
-                background: {COLOR_HEADER};
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #34495E, stop: 1 #2C3E50
+                );
                 color: white;
-                padding: 8px 10px;
+                padding: 10px 12px;
                 font-weight: 600;
                 font-size: 12px;
                 border: none;
                 border-right: 1px solid rgba(255,255,255,0.1);
+                border-bottom: 2px solid #3498DB;
+            }}
+            QTableWidget#device_table QHeaderView::section:last {{
+                border-right: none;
             }}
             QTableWidget#device_table::item {{
-                padding: 6px 10px;
+                padding: 8px 12px;
                 border-bottom: 1px solid {COLOR_BORDER};
                 color: {COLOR_TEXT_PRIMARY};
             }}
+            QTableWidget#device_table::item:hover {{
+                background: #F5F9FF;
+            }}
             QTableWidget#device_table::item:selected {{
-                background: {COLOR_ACCENT};
-                color: white;
+                background: rgba(52, 152, 219, 0.1);
+                color: {COLOR_ACCENT};
+                font-weight: 500;
+                border-left: 3px solid {COLOR_ACCENT};
             }}
             
-            /* 日志视图 - 深色主题 */
+            /* 日志视图 - 现代化深色主题 */
             QTextEdit#log_view {{
-                background: {COLOR_LOG_BG};
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #34495E, stop: 1 #2C3E50
+                );
                 color: {COLOR_LOG_INFO};
-                border: none;
-                border-radius: 6px;
-                padding: 8px;
-                font-family: "JetBrains Mono", "Consolas", monospace;
-                font-size: 12px;
-                line-height: 1.5;
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 8px;
+                padding: 12px;
+                font-family: "JetBrains Mono", "Consolas", "Monaco", monospace;
+                font-size: 11px;
+                line-height: 1.6;
+                selection-background-color: rgba(52, 152, 219, 0.3);
+            }}
+            QTextEdit#log_view QScrollBar:vertical {{
+                background: rgba(0,0,0,0.2);
+                border-radius: 4px;
+                width: 8px;
+                margin: 2px;
+            }}
+            QTextEdit#log_view QScrollBar::handle:vertical {{
+                background: #5D6D7E;
+                border-radius: 4px;
+                min-height: 30px;
+            }}
+            QTextEdit#log_view QScrollBar::handle:vertical:hover {{
+                background: #3498DB;
             }}
             
-            /* 主要按钮 - 开始巡检 */
+            /* 主要按钮 - 开始巡检 (现代化设计) */
             QPushButton#btn_start {{
-                background: {COLOR_SUCCESS};
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #2ECC71, stop: 1 #27AE60
+                );
                 color: white;
                 border: none;
                 border-radius: 6px;
                 font-weight: 600;
                 font-size: 13px;
+                padding: 8px 20px;
+                min-height: 32px;
+                box-shadow: 0 2px 4px rgba(39, 174, 96, 0.3);
             }}
             QPushButton#btn_start:hover {{
-                background: #047857;
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #27AE60, stop: 1 #229954
+                );
+                box-shadow: 0 4px 8px rgba(39, 174, 96, 0.4);
+                transform: translateY(-1px);
+            }}
+            QPushButton#btn_start:pressed {{
+                background: #229954;
+                box-shadow: 0 1px 2px rgba(39, 174, 96, 0.3);
+                transform: translateY(0);
             }}
             QPushButton#btn_start:disabled {{
-                background: #9CA3AF;
+                background: #95A5A6;
+                box-shadow: none;
+                color: #BDC3C7;
             }}
             
-            /* 次要按钮 - 停止巡检 */
+            /* 次要按钮 - 停止巡检 (现代化设计) */
             QPushButton#btn_stop {{
-                background: {COLOR_DANGER};
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #E74C3C, stop: 1 #C0392B
+                );
                 color: white;
                 border: none;
                 border-radius: 6px;
                 font-weight: 600;
                 font-size: 13px;
+                padding: 8px 20px;
+                min-height: 32px;
+                box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
             }}
             QPushButton#btn_stop:hover {{
-                background: #B91C1C;
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #C0392B, stop: 1 #A93226
+                );
+                box-shadow: 0 4px 8px rgba(231, 76, 60, 0.4);
+                transform: translateY(-1px);
+            }}
+            QPushButton#btn_stop:pressed {{
+                background: #A93226;
+                box-shadow: 0 1px 2px rgba(231, 76, 60, 0.3);
+                transform: translateY(0);
             }}
             QPushButton#btn_stop:disabled {{
-                background: #9CA3AF;
+                background: #95A5A6;
+                box-shadow: none;
+                color: #BDC3C7;
             }}
             
             /* 工具栏次要按钮 */
@@ -1134,20 +1282,90 @@ class MainWindow(QMainWindow):
                 border-radius: 3px;
             }}
             
-            /* 状态栏 */
+            /* 状态栏 - 现代化设计 */
             QStatusBar {{
-                background: #F8FAFC;
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop: 0 #F8FAFC, stop: 1 #F0F2F5
+                );
                 border-top: 1px solid {COLOR_BORDER};
                 font-size: 12px;
                 color: {COLOR_TEXT_SECONDARY};
+                padding: 4px 12px;
+                min-height: 24px;
+            }}
+            QStatusBar QLabel {{
+                padding: 2px 8px;
+                border-radius: 3px;
+                background: rgba(52, 152, 219, 0.1);
+                color: {COLOR_ACCENT};
+                font-weight: 500;
             }}
             
-            /* 分隔器 */
+            /* 分隔器 - 现代化设计 */
             QSplitter::handle {{
-                background: {COLOR_BORDER};
-                height: 3px;
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 transparent, stop: 0.5 {COLOR_ACCENT}, stop: 1 transparent
+                );
+                height: 1px;
+                margin: 0 2px;
             }}
             QSplitter::handle:hover {{
                 background: {COLOR_ACCENT};
+                height: 3px;
+            }}
+            QSplitter::handle:pressed {{
+                background: {COLOR_HEADER};
+            }}
+            
+            /* 复选框美化 */
+            QCheckBox {{
+                spacing: 8px;
+                font-size: 12px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 2px solid {COLOR_BORDER};
+                border-radius: 3px;
+            }}
+            QCheckBox::indicator:checked {{
+                background: {COLOR_ACCENT};
+                border-color: {COLOR_ACCENT};
+                image: url(checkmark.png);
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {COLOR_ACCENT};
+            }}
+            
+            /* 标签页美化 */
+            QTabWidget::pane {{
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 6px;
+                background: {COLOR_CARD};
+                margin-top: 4px;
+            }}
+            QTabBar::tab {{
+                background: #F8FAFC;
+                border: 1px solid {COLOR_BORDER};
+                border-bottom: none;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                padding: 8px 16px;
+                margin-right: 2px;
+                font-size: 12px;
+                color: {COLOR_TEXT_SECONDARY};
+            }}
+            QTabBar::tab:selected {{
+                background: {COLOR_CARD};
+                color: {COLOR_ACCENT};
+                font-weight: 600;
+                border-bottom: 2px solid {COLOR_ACCENT};
+            }}
+            QTabBar::tab:hover:!selected {{
+                background: #EFF6FF;
+                color: {COLOR_TEXT_PRIMARY};
+            }}
             }}
         """)
