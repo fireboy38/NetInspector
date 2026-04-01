@@ -26,3 +26,6 @@ Thumbs.db
 # NetInspector specific
 巡检结果/
 *.xlsx
+
+# Development tools
+.codebuddy/
